@@ -1,0 +1,6 @@
+# exclude everything
+Task1_pseudoLabeling/data/*
+papers/*
+
+# exception to the rule
+!Task1_pseudoLabeling/data/.gitkeep 
