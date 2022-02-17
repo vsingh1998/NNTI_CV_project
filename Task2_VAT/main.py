@@ -7,6 +7,7 @@ from utils      import accuracy
 from model.wrn  import WideResNet
 
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data   import DataLoader
 
@@ -43,6 +44,12 @@ def main(args):
 
     ############################################################################
     # TODO: SUPPLY your code
+    # define loss, optimizer and lr scheduler
+    criterion = nn.CrossEntropyLoss().to(device)
+    vat_loss = VATLoss()
+    optimizer = optim.SGD(model.parameters(), args.lr,
+                                momentum=args.momentum, weight_decay=args.wd)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
     ############################################################################
     
     for epoch in range(args.epoch):
@@ -69,6 +76,13 @@ def main(args):
             x_ul        = x_ul.to(device)
             ####################################################################
             # TODO: SUPPLY you code
+            v_loss = vat_loss.forward(model, x_ul)
+            pred = model(x_l)
+            classification_loss = criterion(pred, y_l)
+            total_loss = classification_loss + args.alpha * v_loss
+            optimizer.zero_grad()
+            total_loss.backward()
+            optimizer.step()
             ####################################################################
 
 

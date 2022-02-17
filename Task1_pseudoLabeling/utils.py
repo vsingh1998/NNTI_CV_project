@@ -21,3 +21,14 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
+def alpha_weight(step, T1 = 30, T2 = 100, af = 3):
+    """
+    TODO
+    """
+
+    if step < T1:
+        return 0.0
+    elif step > T2:
+        return af
+    else:
+        return ((step-T1) / (T2-T1)) * af

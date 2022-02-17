@@ -18,8 +18,8 @@ def test_cifar10(testdataset, filepath = "./path/to/model.pth.tar"):
         with the model file. Assume testdataset is like CIFAR-10. Test this
         function with the testdataset returned by get_cifar10()
     '''
-    # TODO: SUPPLY the code for this function
-    raise NotImplementedError
+    model = torch.load(filepath)
+    model.eval()
 
 def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
     '''
@@ -36,5 +36,5 @@ def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
         with the model file. Assume testdataset is like CIFAR-100. Test this
         function with the testdataset returned by get_cifar100()
     '''
-    # TODO: SUPPLY the code for this function
-    raise NotImplementedError
+    model = torch.load(filepath)
+    model.eval()
