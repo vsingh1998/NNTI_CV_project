@@ -14,8 +14,15 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data   import DataLoader
 
-import matplotlib.pyplot as plt
-# import numpy as np
+import logging
+
+#now we will create and configure logger
+logger = logging.getLogger()
+fhandler = logging.FileHandler(filename='out.log', mode='a')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fhandler.setFormatter(formatter)
+logger.addHandler(fhandler)
+logger.setLevel(logging.INFO)
 
 
 def main(args):
@@ -67,13 +74,14 @@ def main(args):
     pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
 
     supervised_epochs = 20 # T1 in paper
-    loss_log = torch.tensor([])
+    loss_log = []
+    train_acc_log = []
 
     ############################################################################
     
     for epoch in range(args.epoch):
-        running_loss = torch.tensor(0.0)
-        running_train_acc = torch.tensor(0.0)
+        running_loss = 0.0
+        running_train_acc = 0.0
 
         model.train()
 
@@ -163,26 +171,39 @@ def main(args):
                         pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
                         pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
         
-        acc_per_epoch = running_acc / args.iter_per_epoch
+        acc_per_epoch = running_train_acc / args.iter_per_epoch
         loss_per_epoch = running_loss / args.iter_per_epoch
-        loss_log = torch.cat((loss_log, loss_per_epoch), 0)
+
+        loss_log.append(loss_per_epoch)
+        train_acc_log.append(acc_per_epoch)
+
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
-        running_loss = torch.tensor(0.0)
+        logger.info(f'==>>> epoch: {epoch}, train loss: {loss_per_epoch}, train accuracy: {acc_per_epoch}')
+
+        running_loss, running_train_acc = 0.0, 0.0
+
+    with open('loss_log.txt', 'w') as f:
+        for item in loss_log:
+            f.write("%s\n" % item)
+
+    with open('acc_log.txt', 'w') as f:
+        for item in train_acc_log:
+            f.write("%s\n" % item)
 
     # plot loss per epoch
-    plt.plot(loss_log.numpy())
-    plt.title('Loss per epoch')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid()
-    plt.savefig('loss.png')
+    # plt.plot(loss_log)
+    # plt.title('Loss per epoch')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Loss')
+    # plt.grid()
+    # plt.savefig('loss.png')
 
-    torch.save(model, args.modelpath)
+    torch.save(model.state_dict(), 'task1_cifar10.pth')
 
 
     ### Test
-    running_acc = torch.tensor(0.0)
-    acc_log = torch.tensor([])
+    running_acc = 0.0
+    acc_log = 0.0
     
     model.eval()
     with torch.no_grad():
@@ -193,17 +214,20 @@ def main(args):
             acc = accuracy(pred.data, labels, topk=(1,))[0]
             running_acc += acc
 
-        print('Accuracy: ', running_acc/batch_idx)
-        acc_log = torch.cat((acc_log, running_acc/batch_idx), 0)
-        running_acc = torch.tensor(0.0)
+        test_accuracy = running_acc.item()/batch_idx
+        print('Accuracy: ', test_accuracy)
+        acc_log.append(test_accuracy)
+        logger.info(f'==>>> test accuracy: {test_accuracy}')
+
+        running_acc = 0.0
 
     # plot accuracy curve
-    plt.plot(acc_log.numpy())
-    plt.title('Accuracy')
-    plt.xlabel('Batch')
-    plt.ylabel('Accuracy')
-    plt.grid()
-    plt.savefig('accuracy.png')
+    # plt.plot(acc_log)
+    # plt.title('Accuracy')
+    # plt.xlabel('Batch')
+    # plt.ylabel('Accuracy')
+    # plt.grid()
+    # plt.savefig('accuracy.png')
 
             ####################################################################
 
@@ -234,7 +258,7 @@ if __name__ == "__main__":
                         help='total number of iterations to run')
     parser.add_argument('--iter-per-epoch', default=1024, type=int,
                         help="Number of iterations to run per epoch")
-    parser.add_argument('--num-workers', default=1, type=int,
+    parser.add_argument('--num-workers', default=4, type=int,
                         help="Number of workers to launch during training")
     parser.add_argument('--threshold', type=float, default=0.95,
                         help='Confidence Threshold for pseudo labeling')
@@ -242,7 +266,7 @@ if __name__ == "__main__":
                         help="Path to save log files")
     parser.add_argument("--model-depth", type=int, default=28,
                         help="model depth for wide resnet") 
-    parser.add_argument("--model-width", type=int, default=2,
+    parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
