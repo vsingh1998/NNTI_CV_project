@@ -67,7 +67,7 @@ def main(args):
     
     for epoch in range(args.epoch):
         running_loss = 0.0
-        total_data = 0
+        # total_data = 0
 
         model.train()
 
@@ -104,7 +104,7 @@ def main(args):
 
                 total_loss = criterion(pred, y_l)
                 running_loss += total_loss.item()
-                total_data += x_l.size(0)
+                # total_data += x_l.size(0)
 
                 # compute gradient and do SGD step
                 optimizer.zero_grad()
@@ -134,7 +134,7 @@ def main(args):
                 acc = accuracy(pred.data, Y_train, topk=(1,))[0]
 
                 running_loss += total_loss.item()
-                total_data   += X_train.size(0)
+                # total_data   += X_train.size(0)
                 # print(acc)
 
                 # compute gradient and do SGD step
@@ -163,9 +163,9 @@ def main(args):
                         pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
                         pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
 
-            
-        loss_log.append(running_loss/total_data)
-        print('Epoch: ', epoch, 'Loss: ', running_loss/total_data)
+        loss_per_epoch = running_loss / args.iter_per_epoch
+        loss_log.append(loss_per_epoch)
+        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch)
         running_loss = 0.0
 
     # plot loss per epoch
