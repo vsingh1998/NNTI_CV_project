@@ -15,6 +15,7 @@ import torch.optim as optim
 from torch.utils.data   import DataLoader
 
 import matplotlib.pyplot as plt
+# import numpy as np
 
 
 def main(args):
@@ -27,7 +28,12 @@ def main(args):
         labeled_dataset, unlabeled_dataset, test_dataset = get_cifar100(args, 
                                                                 args.datapath)
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-    
+
+    print(type(unlabeled_dataset))
+    print(unlabeled_dataset.size)
+    print(unlabeled_dataset.shape)
+    print(unlabeled_dataset[0])
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     labeled_loader      = iter(DataLoader(labeled_dataset, 
@@ -44,11 +50,11 @@ def main(args):
                                     num_workers=args.num_workers)
     
     model       = WideResNet(args.model_depth, 
-                                args.num_classes, widen_factor=args.model_width)
+                                args.num_classes, widen_factor=args.model_width,
+                                dropRate= args.dropout)
     model       = model.to(device)
 
     ############################################################################
-    # TODO: SUPPLY your code
 
     # define loss, optimizer and lr scheduler
     criterion = nn.CrossEntropyLoss().to(device)
@@ -61,13 +67,13 @@ def main(args):
     pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
 
     supervised_epochs = 20 # T1 in paper
-    loss_log = []
+    loss_log = torch.tensor([])
 
     ############################################################################
     
     for epoch in range(args.epoch):
-        running_loss = 0.0
-        # total_data = 0
+        running_loss = torch.tensor(0.0)
+        running_train_acc = torch.tensor(0.0)
 
         model.train()
 
@@ -94,17 +100,15 @@ def main(args):
             x_ul        = x_ul.to(device)
 
             ####################################################################
-            # TODO: SUPPLY your code
-            ####################################################################
             
             # train on labeled data for specified epochs (T1 in paper)
             if epoch < supervised_epochs:
                 pred = model(x_l)
-                # acc = accuracy(pred.data, y_l, topk=(1,))[0] # do we need to calc when it is not used
-
+                acc = accuracy(pred.data, y_l, topk=(1,))[0] 
                 total_loss = criterion(pred, y_l)
+
                 running_loss += total_loss.item()
-                # total_data += x_l.size(0)
+                running_train_acc += acc
 
                 # compute gradient and do SGD step
                 optimizer.zero_grad()
@@ -134,8 +138,7 @@ def main(args):
                 acc = accuracy(pred.data, Y_train, topk=(1,))[0]
 
                 running_loss += total_loss.item()
-                # total_data   += X_train.size(0)
-                # print(acc)
+                running_train_acc += acc
 
                 # compute gradient and do SGD step
                 optimizer.zero_grad()
@@ -155,21 +158,19 @@ def main(args):
 
                 # pseudo labeling
                 for idx_ul, pred in enumerate(pred_prob):
-                    
                     max_prob, max_prob_class = torch.max(pred, dim=-1)
                     if max_prob > args.threshold:
-                        # pseudo_label = torch.where(pred == max_prob, torch.tensor(1), torch.tensor(0))
-                        # print(pseudo_label)
                         pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
                         pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
-
+        
+        acc_per_epoch = running_acc / args.iter_per_epoch
         loss_per_epoch = running_loss / args.iter_per_epoch
-        loss_log.append(loss_per_epoch)
-        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch)
-        running_loss = 0.0
+        loss_log = torch.cat((loss_log, loss_per_epoch), 0)
+        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        running_loss = torch.tensor(0.0)
 
     # plot loss per epoch
-    plt.plot(loss_log)
+    plt.plot(loss_log.numpy())
     plt.title('Loss per epoch')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
@@ -180,9 +181,8 @@ def main(args):
 
 
     ### Test
-    running_acc = 0.0
-    acc_log = []
-    test_loss = 0.0
+    running_acc = torch.tensor(0.0)
+    acc_log = torch.tensor([])
     
     model.eval()
     with torch.no_grad():
@@ -194,16 +194,18 @@ def main(args):
             running_acc += acc
 
         print('Accuracy: ', running_acc/batch_idx)
-        acc_log.append(running_acc/batch_idx)
-        running_acc = 0.0
+        acc_log = torch.cat((acc_log, running_acc/batch_idx), 0)
+        running_acc = torch.tensor(0.0)
 
     # plot accuracy curve
-    plt.plot(acc_log)
+    plt.plot(acc_log.numpy())
     plt.title('Accuracy')
     plt.xlabel('Batch')
     plt.ylabel('Accuracy')
     plt.grid()
     plt.savefig('accuracy.png')
+
+            ####################################################################
 
 
 
@@ -247,6 +249,8 @@ if __name__ == "__main__":
                         help="Milestones for the LR scheduler")# see if useful, else rm
     parser.add_argument("--modelpath", default="./model/wrn.pth", 
                         type=str, help="Path to save model")
+    parser.add_argument("--dropout", default=0.3, type=float, 
+                        help="Dropout rate for model")                    
     
     # Add more arguments if you need them
     # Describe them in help
