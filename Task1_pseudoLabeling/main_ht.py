@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import math
 from sys import prefix
@@ -35,11 +37,6 @@ def main(args):
         labeled_dataset, unlabeled_dataset, test_dataset = get_cifar100(args, 
                                                                 args.datapath)
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-
-    print(type(unlabeled_dataset))
-    print(unlabeled_dataset.size)
-    print(unlabeled_dataset.shape)
-    print(unlabeled_dataset[0])
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
