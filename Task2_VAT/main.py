@@ -86,10 +86,11 @@ def main(args):
             ####################################################################
             # TODO: SUPPLY you code
             pred = model(x_l)
-
-            v_loss = vat_loss.forward(model, x_ul)
             classification_loss = criterion(pred, y_l)
+            v_loss = vat_loss.forward(model, x_ul)
+
             total_loss = classification_loss + args.alpha * v_loss
+            print("For {i} in epoch {epoch}: classification_loss= {classification_loss} v_loss= {v_loss} total_loss= {total_loss}")
             acc = accuracy(pred.data, y_l, topk=(1,))[0] 
             
             running_loss += total_loss.item()

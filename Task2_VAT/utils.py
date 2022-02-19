@@ -19,10 +19,15 @@ def accuracy(output, target, topk=(1,)):
         for k in topk:
             correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
+        
         return res
 
-# reference: https://github.com/lyakaap/VAT-pytorch
-def _l2_normalize(d):
-    d_reshaped = d.view(d.shape[0], -1, *(1 for _ in range(d.dim() - 2)))
-    d /= torch.norm(d_reshaped, dim=1, keepdim=True) + 1e-8
-    return d
+def _l2_normalize(x):
+    """
+    TODO
+    reference: https://github.com/lyakaap/VAT-pytorch
+    """
+    reshaped_x = x.view(x.shape[0], -1, *(1 for _ in range(x.dim() - 2)))
+    x /= torch.norm(reshaped_x, dim=1, keepdim=True) + 1e-8
+    
+    return x
