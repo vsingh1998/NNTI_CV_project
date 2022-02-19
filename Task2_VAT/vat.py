@@ -19,7 +19,7 @@ class VATLoss(nn.Module):
         r = _l2_normalize(r)
 
         with torch.no_grad():
-            pred = F.softmax(model(x), dim=1)
+            pred = F.log_softmax(model(x), dim=1)
 
         for i in range(self.vat_iter):
             r.requires_grad_()
