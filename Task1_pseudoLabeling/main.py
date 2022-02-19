@@ -244,7 +244,7 @@ if __name__ == "__main__":
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
                         help="Milestones for the LR scheduler")# see if useful, else rm
-    parser.add_argument("--modelpath", default="./model/wrn.pth", 
+    parser.add_argument("--modelpath", default="./model/task1.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.3, type=float, 
                         help="Dropout rate for model")                    

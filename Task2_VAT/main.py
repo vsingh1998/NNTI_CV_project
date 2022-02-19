@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data   import DataLoader
 
+import matplotlib.pyplot as plt
 
 def main(args):
     if args.dataset == "cifar10":
@@ -39,20 +40,28 @@ def main(args):
                                     num_workers=args.num_workers)
     
     model       = WideResNet(args.model_depth, 
-                                args.num_classes, widen_factor=args.model_width)
+                                args.num_classes, widen_factor=args.model_width,
+                                dropRate= args.dropout)
     model       = model.to(device)
 
     ############################################################################
     # TODO: SUPPLY your code
     # define loss, optimizer and lr scheduler
     criterion = nn.CrossEntropyLoss().to(device)
-    vat_loss = VATLoss()
+    vat_loss = VATLoss(args)
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
+    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
+
+    loss_log = []
+    train_acc_log = []
+    model.train()
     ############################################################################
     
     for epoch in range(args.epoch):
+        running_loss = 0.0
+        running_train_acc = 0.0
+
         for i in range(args.iter_per_epoch):
             try:
                 x_l, y_l    = next(labeled_loader)
@@ -76,13 +85,63 @@ def main(args):
             x_ul        = x_ul.to(device)
             ####################################################################
             # TODO: SUPPLY you code
-            v_loss = vat_loss.forward(model, x_ul)
             pred = model(x_l)
+
+            v_loss = vat_loss.forward(model, x_ul)
             classification_loss = criterion(pred, y_l)
             total_loss = classification_loss + args.alpha * v_loss
+            acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+            
+            running_loss += total_loss.item()
+            running_train_acc += acc
+
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
+
+        acc_per_epoch = running_train_acc / args.iter_per_epoch
+        train_acc_log.append(acc_per_epoch)
+        loss_per_epoch = running_loss / args.iter_per_epoch
+        loss_log.append(loss_per_epoch)
+        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        running_loss, running_train_acc = 0.0, 0.0
+
+    # plot loss per epoch
+    plt.plot(loss_log)
+    plt.title('Loss per epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.grid()
+    plt.savefig('loss.png')
+
+    torch.save(model, args.modelpath)
+
+    ### Test
+    running_acc = 0.0
+    acc_log = []
+    
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, (inputs, labels) in enumerate(test_loader):
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            pred = model(inputs)
+            acc = accuracy(pred.data, labels, topk=(1,))[0]
+            running_acc += acc
+
+        test_accuracy = running_acc.item() / batch_idx
+        print('Accuracy: ', test_accuracy)
+        acc_log.append(test_accuracy)
+        running_acc = 0.0
+
+    # plot accuracy curve
+    plt.plot(acc_log)
+    plt.title('Accuracy')
+    plt.xlabel('Batch')
+    plt.ylabel('Accuracy')
+    plt.grid()
+    plt.savefig('accuracy.png')
+        
             ####################################################################
 
 
@@ -112,7 +171,7 @@ if __name__ == "__main__":
                         help='total number of iterations to run')
     parser.add_argument('--iter-per-epoch', default=1024, type=int,
                         help="Number of iterations to run per epoch")
-    parser.add_argument('--num-workers', default=1, type=int,
+    parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")                        
     parser.add_argument('--alpha', type=float, default=1.0, metavar='ALPHA',
                         help='regularization coefficient (default: 0.01)')
@@ -127,7 +186,16 @@ if __name__ == "__main__":
     parser.add_argument("--vat-eps", default=1.0, type=float, 
                         help="VAT epsilon parameter") 
     parser.add_argument("--vat-iter", default=1, type=int, 
-                        help="VAT iteration parameter") 
+                        help="VAT iteration parameter")
+
+    # added arguments
+    parser.add_argument('--milestones', action='append', type=int, default=[], 
+                        help="Milestones for the LR scheduler")# see if useful, else rm
+    parser.add_argument("--modelpath", default="./model/task2.pth", 
+                        type=str, help="Path to save model")
+    parser.add_argument("--dropout", default=0.3, type=float, 
+                        help="Dropout rate for model") 
+
     # Add more arguments if you need them
     # Describe them in help
     # You can (and should) change the default values of the arguments
