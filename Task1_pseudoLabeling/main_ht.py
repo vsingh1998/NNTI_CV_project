@@ -200,7 +200,7 @@ def main(args):
 
     ### Test
     running_acc = 0.0
-    acc_log = 0.0
+    acc_log = []
     
     model.eval()
     with torch.no_grad():
@@ -255,13 +255,13 @@ if __name__ == "__main__":
                         help='total number of iterations to run')
     parser.add_argument('--iter-per-epoch', default=1024, type=int,
                         help="Number of iterations to run per epoch")
-    parser.add_argument('--num-workers', default=4, type=int,
+    parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
-    parser.add_argument('--threshold', type=float, default=0.95,
+    parser.add_argument('--threshold', type=float, default=0.6,
                         help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--dataout", type=str, default="./path/to/output/",
                         help="Path to save log files")
-    parser.add_argument("--model-depth", type=int, default=28,
+    parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
