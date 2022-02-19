@@ -20,7 +20,6 @@ class VATLoss(nn.Module):
 
         with torch.no_grad():
             pred = F.softmax(model(x), dim=1)
-            print(pred[0])
 
         for i in range(self.vat_iter):
             r.requires_grad_()
@@ -34,13 +33,11 @@ class VATLoss(nn.Module):
 
         r_adv = r * self.eps
 
-        #sdnfjl
         test = x + r_adv
         save_image(x[0], 'x1.png')
         save_image(test[0], 'test1.png')
         
         adv_pred = F.softmax(model(x + r_adv), dim=1)
-        print(adv_pred[0])
         loss = F.kl_div(pred, adv_pred)
 
         return loss

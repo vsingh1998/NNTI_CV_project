@@ -1,6 +1,16 @@
 # exclude everything
-Task1_pseudoLabeling/data/*
+.DS_Store
 papers/*
+Task1_pseudoLabeling/data/*
+Task1_pseudoLabeling/__pycache__
+Task1_pseudoLabeling/model/__pycache__
+Task1_pseudoLabeling/model/.DS_Store
+
+Task2_VAT/data/*
+Task2_VAT/__pycache__
+Task2_VAT/model/__pycache__
+Task2_VAT/model/.DS_Store
 
 # exception to the rule
 !Task1_pseudoLabeling/data/.gitkeep 
+!Task2_VAT/data/.gitkeep
