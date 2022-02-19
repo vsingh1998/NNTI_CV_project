@@ -24,8 +24,8 @@ class VATLoss(nn.Module):
         for i in range(self.vat_iter):
             r.requires_grad_()
             adv_examples = x + self.xi * r
-            adv_pred = F.softmax(model(adv_examples), dim=1)
-            adv_distance = F.kl_div(pred, adv_pred, reduction='batchmean')
+            adv_pred = F.log_softmax(model(adv_examples), dim=1)
+            adv_distance = F.kl_div(adv_pred, pred, reduction='batchmean')
             adv_distance.backward()
             r = r.grad
             r = _l2_normalize(r)
@@ -34,8 +34,8 @@ class VATLoss(nn.Module):
         r_adv = r * self.eps
         # test = x + r_adv #rm after debugging
         
-        adv_pred = F.softmax(model(x + r_adv), dim=1)
-        loss = F.kl_div(pred, adv_pred)
+        adv_pred = F.log_softmax(model(x + r_adv), dim=1)
+        loss = F.kl_div(adv_pred, pred, reduction='batchmean')
 
         # print('x_l pred', torch.argmax(pred[0]), 'adv_pred', torch.argmax(adv_pred[0]))
         # save_image(x[0], 'x1.png')
