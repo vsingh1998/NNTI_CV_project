@@ -90,7 +90,7 @@ def main(args):
             v_loss = vat_loss.forward(model, x_ul)
 
             total_loss = classification_loss + args.alpha * v_loss
-            print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
+            # print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
             acc = accuracy(pred.data, y_l, topk=(1,))[0] 
             
             running_loss += total_loss.item()
@@ -104,7 +104,7 @@ def main(args):
         train_acc_log.append(acc_per_epoch)
         loss_per_epoch = running_loss / args.iter_per_epoch
         loss_log.append(loss_per_epoch)
-        # print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
         running_loss, running_train_acc = 0.0, 0.0
 
     # plot loss per epoch
