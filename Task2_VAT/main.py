@@ -104,7 +104,7 @@ def main(args):
         train_acc_log.append(acc_per_epoch)
         loss_per_epoch = running_loss / args.iter_per_epoch
         loss_log.append(loss_per_epoch)
-        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        # print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
         running_loss, running_train_acc = 0.0, 0.0
 
     # plot loss per epoch
