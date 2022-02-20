@@ -1,5 +1,5 @@
 from torchvision.utils import save_image
-from utils import _l2_normalize
+from utils import L2_norm
 
 import torch
 import torch.nn as nn
@@ -12,11 +12,12 @@ class VATLoss(nn.Module):
         self.xi = args.vat_xi
         self.eps = args.vat_eps
         self.vat_iter = args.vat_iter
+        self.save_img = True
 
     def forward(self, model, x):
         # prepare a random tensor r 
         r = torch.Tensor(x.size()).normal_().to(x.device)
-        r = _l2_normalize(r)
+        r = L2_norm(r)
 
         with torch.no_grad():
             pred = F.softmax(model(x), dim=1)
@@ -28,7 +29,7 @@ class VATLoss(nn.Module):
             adv_distance = F.kl_div(adv_pred, pred, reduction='batchmean')
             adv_distance.backward()
             r = r.grad
-            r = _l2_normalize(r)
+            r = L2_norm(r)
             model.zero_grad()
 
         r_adv = r * self.eps
@@ -38,7 +39,9 @@ class VATLoss(nn.Module):
         loss = F.kl_div(adv_pred, pred, reduction='batchmean')
 
         # print('x_l pred', torch.argmax(pred[0]), 'adv_pred', torch.argmax(adv_pred[0]))
-        save_image(x[0], 'x1.png')
-        save_image(test[0], 'x1_adv.png')
+        if self.save_img == True:
+            save_image(x[0], 'x1.png')
+            save_image(test[0], 'x1_adv.png')
+            self.save_img = False
 
         return loss

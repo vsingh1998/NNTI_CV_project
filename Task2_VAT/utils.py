@@ -22,10 +22,12 @@ def accuracy(output, target, topk=(1,)):
         
         return res
 
-def _l2_normalize(x):
+def L2_norm(x):
     """
-    TODO
-    reference: https://github.com/lyakaap/VAT-pytorch
+    Function taken from: 
+    https://github.com/lyakaap/VAT-pytorch
+    Normalize the incoming tensor x, 
+    such that ||L2Norm(x)||_2 = 1
     """
     reshaped_x = x.view(x.shape[0], -1, *(1 for _ in range(x.dim() - 2)))
     x /= torch.norm(reshaped_x, dim=1, keepdim=True) + 1e-8
