@@ -12,7 +12,9 @@ class VATLoss(nn.Module):
         self.xi = args.vat_xi
         self.eps = args.vat_eps
         self.vat_iter = args.vat_iter
-        self.save_img = True
+        # flag to get adversarial example for report
+        # set to True to get image
+        self.save_img = False 
 
     def forward(self, model, x):
         # prepare a random tensor r 
@@ -26,20 +28,22 @@ class VATLoss(nn.Module):
             r.requires_grad_()
             adv_examples = x + self.xi * r
             adv_pred = F.log_softmax(model(adv_examples), dim=1)
-            adv_distance = F.kl_div(adv_pred, pred, reduction='batchmean')
+            kldiv_loss = nn.KLDivLoss(reduction='batchmean')
+            adv_distance = kldiv_loss(adv_pred, pred)
             adv_distance.backward()
             r = r.grad
             r = L2_norm(r)
             model.zero_grad()
 
         r_adv = r * self.eps
-        test = x + r_adv #rm after debugging
-        
         adv_pred = F.log_softmax(model(x + r_adv), dim=1)
-        loss = F.kl_div(adv_pred, pred, reduction='batchmean')
+
+        kldiv_loss = nn.KLDivLoss(reduction='batchmean')
+        loss = kldiv_loss(adv_pred, pred)
 
         # print('x_l pred', torch.argmax(pred[0]), 'adv_pred', torch.argmax(adv_pred[0]))
-        if self.save_img == True:
+        if self.save_img:
+            test = x + r_adv
             save_image(x[0], 'x1.png')
             save_image(test[0], 'x1_adv.png')
             self.save_img = False
