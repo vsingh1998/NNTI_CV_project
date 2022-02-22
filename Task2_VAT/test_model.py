@@ -51,10 +51,14 @@ def main(args):
     plt.grid()
     plt.savefig('loss.png')
 
+    acc_log = []
     # plot accuracy per epoch
     with open('../trained_models/task2_cifar10_1e6_8_160k_800_16_8__0.3/acc_log.txt') as f:
         lines = f.readlines()
-        acc_log = [float(line.split()[0]) for line in lines]
+        for line in lines:
+            acc = line.split()[0]
+            acc = float(acc[acc.find("[")+1:acc.rfind("]")])
+            acc_log.append(acc)
 
     plt.plot(acc_log)
     plt.title('Accuracy per epoch')

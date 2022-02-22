@@ -53,10 +53,8 @@ def main(args):
 
     # define loss, optimizer and lr scheduler
     criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.Adam(model.parameters(), args.lr, 
-                                betas=(0.9, 0.999), weight_decay=args.wd)
-    # optimizer = optim.SGD(model.parameters(), args.lr,
-    #                             momentum=args.momentum, weight_decay=args.wd)
+    optimizer = optim.SGD(model.parameters(), args.lr,
+                                momentum=args.momentum, weight_decay=args.wd)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
     
     # Pseudo dataset initialization
@@ -97,6 +95,7 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
 
+            print(y_l)
             ####################################################################
             
             # train on labeled data for specified epochs (T1 in paper)
@@ -125,12 +124,12 @@ def main(args):
                 model.train()
                 pred = model(X_train)
 
-                # if pseudo_elements == 0:
-                #     total_loss = criterion(pred, Y_train)
-                # else:
-                #     main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
-                #     pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
-                #     total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs) * pseudo_loss
+                if pseudo_elements == 0:
+                    total_loss = criterion(pred, Y_train)
+                else:
+                    main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
+                    pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
+                    total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs) * pseudo_loss
 
                 total_loss = criterion(pred, Y_train)
                 acc = accuracy(pred.data, Y_train, topk=(1,))[0]
