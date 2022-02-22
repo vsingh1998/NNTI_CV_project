@@ -33,3 +33,14 @@ def L2_norm(x):
     x /= torch.norm(reshaped_x, dim=1, keepdim=True) + 1e-8
     
     return x
+
+def kl_div_with_logit(q_logit, p_logit):
+
+    q = F.softmax(q_logit, dim=1)
+    logq = F.log_softmax(q_logit, dim=1)
+    logp = F.log_softmax(p_logit, dim=1)
+
+    qlogq = (q *logq).sum(dim=1).mean(dim=0)
+    qlogp = (q *logp).sum(dim=1).mean(dim=0)
+
+    return qlogq - qlogp
