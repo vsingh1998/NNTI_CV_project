@@ -134,7 +134,7 @@ def main(args):
     # plt.grid()
     # plt.savefig('loss.png')
 
-    torch.save(model.state_dict(), 'task2_cifar10_1e6_8_160k_800_16_8__0.3.pth')
+    torch.save(model.state_dict(), 'task2.pth')
 
     ### Test
     running_acc = 0.0
@@ -189,9 +189,9 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='train batchsize')
-    parser.add_argument('--total-iter', default=1024*512, type=int,
+    parser.add_argument('--total-iter', default=800*50, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=1024, type=int,
+    parser.add_argument('--iter-per-epoch', default=800, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")                        
@@ -199,13 +199,13 @@ if __name__ == "__main__":
                         help='regularization coefficient (default: 0.01)')
     parser.add_argument("--dataout", type=str, default="./path/to/output/",
                         help="Path to save log files")
-    parser.add_argument("--model-depth", type=int, default=28,
+    parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
-    parser.add_argument("--model-width", type=int, default=2,
+    parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
-    parser.add_argument("--vat-xi", default=10.0, type=float, 
+    parser.add_argument("--vat-xi", default=1e-6, type=float, 
                         help="VAT xi parameter")
-    parser.add_argument("--vat-eps", default=1.0, type=float, 
+    parser.add_argument("--vat-eps", default=2.5, type=float, 
                         help="VAT epsilon parameter") 
     parser.add_argument("--vat-iter", default=1, type=int, 
                         help="VAT iteration parameter")
@@ -215,7 +215,7 @@ if __name__ == "__main__":
                         help="Milestones for the LR scheduler")# see if useful, else rm
     parser.add_argument("--modelpath", default="./model/task2.pth", 
                         type=str, help="Path to save model")
-    parser.add_argument("--dropout", default=0.3, type=float, 
+    parser.add_argument("--dropout", default=0.0, type=float, 
                         help="Dropout rate for model") 
 
     # Add more arguments if you need them

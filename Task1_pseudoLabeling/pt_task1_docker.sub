@@ -1,7 +1,7 @@
 universe 		= docker
 docker_image 		= dankazbek/nnti-2122-project
 executable              = main_ht.py
-output                  = task1_cifar10.pth
+output                  = task1_cifar10_250_t60.pth
 error                   = out.err
 log                     = out.log
 should_transfer_files   = YES

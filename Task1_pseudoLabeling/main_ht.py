@@ -195,7 +195,7 @@ def main(args):
     # plt.grid()
     # plt.savefig('loss.png')
 
-    torch.save(model.state_dict(), 'task1_cifar10.pth')
+    torch.save(model.state_dict(), 'task1_cifar10_250_t60.pth')
 
 
     ### Test
@@ -251,7 +251,7 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='test batchsize')
-    parser.add_argument('--total-iter', default=1024*512, type=int,
+    parser.add_argument('--total-iter', default=1024*200, type=int,
                         help='total number of iterations to run')
     parser.add_argument('--iter-per-epoch', default=1024, type=int,
                         help="Number of iterations to run per epoch")
