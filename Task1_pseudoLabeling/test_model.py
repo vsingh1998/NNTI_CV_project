@@ -124,9 +124,9 @@ if __name__ == "__main__":
                         help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--dataout", type=str, default="./path/to/output/",
                         help="Path to save log files")
-    parser.add_argument("--model-depth", type=int, default=28,
+    parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
-    parser.add_argument("--model-width", type=int, default=2,
+    parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
