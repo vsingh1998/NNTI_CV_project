@@ -40,16 +40,34 @@ def main(args):
     model       = model.to(device)
 
     # plot loss per epoch
-    with open('./model/loss_log.txt') as f:
+    with open('trained_models/task1/loss_log.txt') as f:
         lines = f.readlines()
         loss_log = [float(line.split()[0]) for line in lines]
 
+    plt.figure(0)
     plt.plot(loss_log)
     plt.title('Loss per epoch')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.grid()
     plt.savefig('loss.png')
+
+    # plot accuracy per epoch
+    acc_log = []
+    with open('trained_models/task1/acc_log.txt') as f:
+        lines = f.readlines()
+        for line in lines:
+            acc = line.split()[0]
+            acc = float(acc[acc.find("[")+1:acc.rfind("]")])
+            acc_log.append(acc)
+        
+    plt.figure(1)
+    plt.plot(acc_log)
+    plt.title('Accuracy per epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.grid()
+    plt.savefig('acc.png')
 
     ### Test
     model.load_state_dict(torch.load(args.modelpath, map_location=device))
