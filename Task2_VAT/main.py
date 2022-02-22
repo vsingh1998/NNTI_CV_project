@@ -157,7 +157,7 @@ if __name__ == "__main__":
                         type=str, help="Path to the CIFAR-10/100 dataset")
     parser.add_argument('--num-labeled', type=int, 
                         default=4000, help='Total number of labeled samples')
-    parser.add_argument("--lr", default=0.03, type=float, 
+    parser.add_argument("--lr", default=0.001, type=float, 
                         help="The initial learning rate") 
     parser.add_argument("--momentum", default=0.9, type=float,
                         help="Optimizer momentum")
