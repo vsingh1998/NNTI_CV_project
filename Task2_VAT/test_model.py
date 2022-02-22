@@ -43,7 +43,8 @@ def main(args):
     with open('../trained_models/task2_cifar10_1e6_8_160k_800_16_8__0.3/loss_log.txt') as f:
         lines = f.readlines()
         loss_log = [float(line.split()[0]) for line in lines]
-
+        
+    plt.figure(0)
     plt.plot(loss_log)
     plt.title('Loss per epoch')
     plt.xlabel('Epoch')
@@ -52,10 +53,15 @@ def main(args):
     plt.savefig('loss.png')
 
     # plot accuracy per epoch
+    acc_log = []
     with open('../trained_models/task2_cifar10_1e6_8_160k_800_16_8__0.3/acc_log.txt') as f:
         lines = f.readlines()
-        acc_log = [float(line.split()[0]) for line in lines]
-
+        for line in lines:
+            acc = line.split()[0]
+            acc = float(acc[acc.find("[")+1:acc.rfind("]")])
+            acc_log.append(acc)
+    
+    plt.figure(1)
     plt.plot(acc_log)
     plt.title('Accuracy per epoch')
     plt.xlabel('Epoch')

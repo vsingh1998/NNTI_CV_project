@@ -233,15 +233,15 @@ if __name__ == "__main__":
                         help='total number of iterations to run')
     parser.add_argument('--iter-per-epoch', default=1024, type=int,
                         help="Number of iterations to run per epoch")
-    parser.add_argument('--num-workers', default=4, type=int,
+    parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
     parser.add_argument('--threshold', type=float, default=0.95,
                         help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--dataout", type=str, default="./path/to/output/",
                         help="Path to save log files")
-    parser.add_argument("--model-depth", type=int, default=28,
+    parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
-    parser.add_argument("--model-width", type=int, default=2,
+    parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
