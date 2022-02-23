@@ -7,6 +7,7 @@ from utils      import accuracy
 from model.wrn  import WideResNet
 
 import torch
+print(torch.__version__)
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data   import DataLoader
