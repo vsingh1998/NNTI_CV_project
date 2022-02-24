@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 def accuracy(output, target, topk=(1,)):
     """
@@ -33,3 +34,8 @@ def L2_norm(x):
     x /= torch.norm(reshaped_x, dim=1, keepdim=True) + 1e-8
     
     return x
+
+
+def entropy_loss(p_ul):
+    p = F.softmax(p_ul, dim=1)
+    return - torch.sum(p * F.log_softmax(p_ul, dim=1)) / p_ul.shape[0]

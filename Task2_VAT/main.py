@@ -3,7 +3,7 @@ import math
 
 from dataloader import get_cifar10, get_cifar100
 from vat        import VATLoss
-from utils      import accuracy
+from utils      import accuracy, entropy_loss
 from model.wrn  import WideResNet
 
 import torch
@@ -86,11 +86,17 @@ def main(args):
             x_ul        = x_ul.to(device)
             ####################################################################
             # TODO: SUPPLY you code
+            v_loss = vat_loss.forward(model, x_ul)
             pred = model(x_l)
             classification_loss = criterion(pred, y_l)
-            v_loss = vat_loss.forward(model, x_ul)
 
-            total_loss = classification_loss + args.alpha * v_loss
+            # new loss
+            model.eval()
+            ul_pred = model(x_ul)
+            entropy_loss_ul = entropy_loss(ul_pred)
+
+            model.train() # new
+            total_loss = classification_loss + args.alpha * v_loss + entropy_loss_ul # new
             print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
             acc = accuracy(pred.data, y_l, topk=(1,))[0] 
             
