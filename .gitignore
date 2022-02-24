@@ -5,6 +5,7 @@ Task1_pseudoLabeling/data/*
 Task1_pseudoLabeling/__pycache__
 Task1_pseudoLabeling/model/__pycache__
 Task1_pseudoLabeling/model/.DS_Store
+trained_models/*
 
 Task2_VAT/data/*
 Task2_VAT/__pycache__
