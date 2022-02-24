@@ -1,18 +1,22 @@
 import argparse
 import math
+from sys import prefix
+from tokenize import PseudoExtras
 
 from dataloader import get_cifar10, get_cifar100
-from vat        import VATLoss
-from utils      import accuracy, entropy_loss
+from utils      import accuracy, alpha_weight
+
 from model.wrn  import WideResNet
 
 import torch
-print(torch.__version__)
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data   import DataLoader
 
 import matplotlib.pyplot as plt
+# import numpy as np
+
 
 def main(args):
     if args.dataset == "cifar10":
@@ -24,7 +28,7 @@ def main(args):
         labeled_dataset, unlabeled_dataset, test_dataset = get_cifar100(args, 
                                                                 args.datapath)
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-    
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     labeled_loader      = iter(DataLoader(labeled_dataset, 
@@ -46,22 +50,28 @@ def main(args):
     model       = model.to(device)
 
     ############################################################################
-    # TODO: SUPPLY your code
+
     # define loss, optimizer and lr scheduler
     criterion = nn.CrossEntropyLoss().to(device)
-    vat_loss = VATLoss(args)
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
-    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
+    
+    # Pseudo dataset initialization
+    pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
+    pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
 
+    supervised_epochs = 20 # T1 in paper
     loss_log = []
     train_acc_log = []
-    model.train()
+
     ############################################################################
     
     for epoch in range(args.epoch):
         running_loss = 0.0
         running_train_acc = 0.0
+
+        model.train()
 
         for i in range(args.iter_per_epoch):
             try:
@@ -84,34 +94,79 @@ def main(args):
             
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
+
+            print(y_l)
             ####################################################################
-            # TODO: SUPPLY you code
-            v_loss = vat_loss.forward(model, x_ul)
-            pred = model(x_l)
-            classification_loss = criterion(pred, y_l)
-
-            # new loss
-            ul_pred = model(x_ul)
-            entropy_loss_ul = entropy_loss(ul_pred)
-
-            total_loss = classification_loss + args.alpha * v_loss + entropy_loss_ul # new
-            print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
-            acc = accuracy(pred.data, y_l, topk=(1,))[0] 
             
-            running_loss += total_loss.item()
-            running_train_acc += acc
+            # train on labeled data for specified epochs (T1 in paper)
+            if epoch < supervised_epochs or epoch % 20 == 0:
+                pred = model(x_l)
+                acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+                total_loss = criterion(pred, y_l)
 
-            optimizer.zero_grad()
-            total_loss.backward()
-            optimizer.step()
+                running_loss += total_loss.item()
+                running_train_acc += acc
 
+                # compute gradient and do SGD step
+                optimizer.zero_grad()
+                total_loss.backward()
+                optimizer.step()
+                scheduler.step()
+
+            else:
+                pseudo_elements = torch.numel(pseudo_dataseṭ̣_x)
+
+                # labeled + pseudo combined training data
+                X_train = torch.cat((x_l, pseudo_dataseṭ̣_x), dim=0)
+                Y_train = torch.cat((y_l, pseudo_dataseṭ̣_y), dim=0)
+
+                # train model on combined data
+                model.train()
+                pred = model(X_train)
+
+                if pseudo_elements == 0:
+                    total_loss = criterion(pred, Y_train)
+                else:
+                    main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
+                    pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
+                    total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs) * pseudo_loss
+
+                total_loss = criterion(pred, Y_train)
+                acc = accuracy(pred.data, Y_train, topk=(1,))[0]
+
+                running_loss += total_loss.item()
+                running_train_acc += acc
+
+                # compute gradient and do SGD step
+                optimizer.zero_grad()
+                total_loss.backward()
+                optimizer.step()
+                scheduler.step()
+
+                # make prediction on unlabeled data
+                model.eval()
+                pred_ul = model(x_ul)
+                # get class probabilities
+                pred_prob = F.softmax(pred_ul, dim=1)
+                
+                # reinitialize empty pseudo dataset for current iteration
+                pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
+                pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
+
+                # pseudo labeling
+                for idx_ul, pred in enumerate(pred_prob):
+                    max_prob, max_prob_class = torch.max(pred, dim=-1)
+                    if max_prob > args.threshold:
+                        pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
+                        pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
+        
         acc_per_epoch = running_train_acc / args.iter_per_epoch
         train_acc_log.append(acc_per_epoch)
         loss_per_epoch = running_loss / args.iter_per_epoch
         loss_log.append(loss_per_epoch)
-        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch.item())
+        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
         running_loss, running_train_acc = 0.0, 0.0
-    # """
+
     # plot loss per epoch
     plt.plot(loss_log)
     plt.title('Loss per epoch')
@@ -122,11 +177,11 @@ def main(args):
 
     torch.save(model, args.modelpath)
 
+
     ### Test
+    model.eval()
     running_acc = 0.0
     acc_log = []
-    
-    model.eval()
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
             inputs, labels = inputs.to(device), labels.to(device)
@@ -147,22 +202,21 @@ def main(args):
     plt.ylabel('Accuracy')
     plt.grid()
     plt.savefig('accuracy.png')
-    # """
-        
+
             ####################################################################
 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Virtual adversarial training \
-                                        of CIFAR10/100 using with pytorch")
+    parser = argparse.ArgumentParser(description="Pseudo labeling \
+                                        of CIFAR10/100 with pytorch")
     parser.add_argument("--dataset", default="cifar10", 
                         type=str, choices=["cifar10", "cifar100"])
     parser.add_argument("--datapath", default="./data/", 
                         type=str, help="Path to the CIFAR-10/100 dataset")
     parser.add_argument('--num-labeled', type=int, 
                         default=4000, help='Total number of labeled samples')
-    parser.add_argument("--lr", default=0.001, type=float, 
+    parser.add_argument("--lr", default=0.03, type=float, 
                         help="The initial learning rate") 
     parser.add_argument("--momentum", default=0.9, type=float,
                         help="Optimizer momentum")
@@ -173,36 +227,29 @@ if __name__ == "__main__":
     parser.add_argument('--train-batch', default=64, type=int,
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
-                        help='train batchsize')
+                        help='test batchsize')
     parser.add_argument('--total-iter', default=1024*512, type=int,
                         help='total number of iterations to run')
     parser.add_argument('--iter-per-epoch', default=1024, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
-                        help="Number of workers to launch during training")                        
-    parser.add_argument('--alpha', type=float, default=1.0, metavar='ALPHA',
-                        help='regularization coefficient (default: 0.01)')
+                        help="Number of workers to launch during training")
+    parser.add_argument('--threshold', type=float, default=0.95,
+                        help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--dataout", type=str, default="./path/to/output/",
                         help="Path to save log files")
-    parser.add_argument("--model-depth", type=int, default=28,
+    parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
-    parser.add_argument("--model-width", type=int, default=2,
+    parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
-    parser.add_argument("--vat-xi", default=10.0, type=float, 
-                        help="VAT xi parameter")
-    parser.add_argument("--vat-eps", default=1.0, type=float, 
-                        help="VAT epsilon parameter") 
-    parser.add_argument("--vat-iter", default=1, type=int, 
-                        help="VAT iteration parameter")
-
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
                         help="Milestones for the LR scheduler")# see if useful, else rm
-    parser.add_argument("--modelpath", default="./model/task2.pth", 
+    parser.add_argument("--modelpath", default="./model/task1.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.3, type=float, 
-                        help="Dropout rate for model") 
-
+                        help="Dropout rate for model")                    
+    
     # Add more arguments if you need them
     # Describe them in help
     # You can (and should) change the default values of the arguments
