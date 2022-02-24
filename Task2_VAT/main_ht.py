@@ -63,6 +63,7 @@ def main(args):
                                 momentum=args.momentum, weight_decay=args.wd)
     # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
+    supervised_epochs = 40
     loss_log = []
     train_acc_log = []
     model.train()
@@ -94,21 +95,36 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
             ####################################################################
+            if epoch < supervised_epochs:
+                pred = model(x_l)
+                acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+                total_loss = criterion(pred, y_l)
+
+                running_loss += total_loss.item()
+                running_train_acc += acc
+
+                # compute gradient and do SGD step
+                optimizer.zero_grad()
+                total_loss.backward()
+                optimizer.step()
+                # scheduler.step()
+
+            else:
             # TODO: SUPPLY you code
-            pred = model(x_l)
-            classification_loss = criterion(pred, y_l)
-            v_loss = vat_loss.forward(model, x_ul)
+                pred = model(x_l)
+                classification_loss = criterion(pred, y_l)
+                v_loss = vat_loss.forward(model, x_ul)
 
-            total_loss = classification_loss + args.alpha * v_loss
-            print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
-            acc = accuracy(pred.data, y_l, topk=(1,))[0] 
-            
-            running_loss += total_loss.item()
-            running_train_acc += acc
+                total_loss = classification_loss + args.alpha * v_loss
+                print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
+                acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+                
+                running_loss += total_loss.item()
+                running_train_acc += acc
 
-            optimizer.zero_grad()
-            total_loss.backward()
-            optimizer.step()
+                optimizer.zero_grad()
+                total_loss.backward()
+                optimizer.step()
 
         acc_per_epoch = running_train_acc / args.iter_per_epoch
         train_acc_log.append(acc_per_epoch)
@@ -134,7 +150,7 @@ def main(args):
     # plt.grid()
     # plt.savefig('loss.png')
 
-    torch.save(model.state_dict(), 'task2.pth')
+    torch.save(model.state_dict(), 'task2_cifar10_4000_supervised.pth')
 
     ### Test
     running_acc = 0.0
@@ -205,7 +221,7 @@ if __name__ == "__main__":
                         help="model width for wide resnet")
     parser.add_argument("--vat-xi", default=1e-6, type=float, 
                         help="VAT xi parameter")
-    parser.add_argument("--vat-eps", default=2.5, type=float, 
+    parser.add_argument("--vat-eps", default=6.0, type=float, 
                         help="VAT epsilon parameter") 
     parser.add_argument("--vat-iter", default=1, type=int, 
                         help="VAT iteration parameter")
