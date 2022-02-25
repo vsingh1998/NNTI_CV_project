@@ -70,7 +70,7 @@ def main(args):
     pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
     pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
 
-    supervised_epochs = 20 # T1 in paper
+    supervised_epochs = 5 # T1 in paper
     loss_log = []
     train_acc_log = []
 
@@ -138,7 +138,7 @@ def main(args):
                 else:
                     main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
                     pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
-                    total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs) * pseudo_loss
+                    total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs, T2 = 50) * pseudo_loss
 
                 acc = accuracy(pred.data, Y_train, topk=(1,))[0]
 
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     parser.add_argument("--datapath", default="./data/", 
                         type=str, help="Path to the CIFAR-10/100 dataset")
     parser.add_argument('--num-labeled', type=int, 
-                        default=4000, help='Total number of labeled samples')
+                        default=250, help='Total number of labeled samples')
     parser.add_argument("--lr", default=0.03, type=float, 
                         help="The initial learning rate") 
     parser.add_argument("--momentum", default=0.9, type=float,
@@ -251,9 +251,9 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='test batchsize')
-    parser.add_argument('--total-iter', default=1024*200, type=int,
+    parser.add_argument('--total-iter', default=64*100, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=1024, type=int,
+    parser.add_argument('--iter-per-epoch', default=64, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
@@ -270,7 +270,7 @@ if __name__ == "__main__":
                         help="Milestones for the LR scheduler")# see if useful, else rm
     parser.add_argument("--modelpath", default="./model/wrn.pth", 
                         type=str, help="Path to save model")
-    parser.add_argument("--dropout", default=0.3, type=float, 
+    parser.add_argument("--dropout", default=0.1, type=float, 
                         help="Dropout rate for model")                    
     
     # Add more arguments if you need them

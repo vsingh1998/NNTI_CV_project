@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import math
 from sys import prefix
@@ -14,8 +16,15 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data   import DataLoader
 
-import matplotlib.pyplot as plt
-# import numpy as np
+import logging
+
+#now we will create and configure logger
+logger = logging.getLogger()
+fhandler = logging.FileHandler(filename='out.log', mode='a')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fhandler.setFormatter(formatter)
+logger.addHandler(fhandler)
+logger.setLevel(logging.INFO)
 
 
 def main(args):
@@ -61,7 +70,7 @@ def main(args):
     pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
     pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
 
-    supervised_epochs = 20 # T1 in paper
+    supervised_epochs = 5 # T1 in paper
     loss_log = []
     train_acc_log = []
 
@@ -95,11 +104,10 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
 
-            print(y_l)
             ####################################################################
             
             # train on labeled data for specified epochs (T1 in paper)
-            if epoch < supervised_epochs or epoch % 20 == 0:
+            if epoch < supervised_epochs:
                 pred = model(x_l)
                 acc = accuracy(pred.data, y_l, topk=(1,))[0] 
                 total_loss = criterion(pred, y_l)
@@ -119,17 +127,11 @@ def main(args):
                 # labeled + pseudo combined training data
                 X_train = torch.cat((x_l, pseudo_dataseṭ̣_x), dim=0)
                 Y_train = torch.cat((y_l, pseudo_dataseṭ̣_y), dim=0)
+                # print(X_train.shape)
 
                 # train model on combined data
                 model.train()
                 pred = model(X_train)
-
-                if pseudo_elements == 0:
-                    total_loss = criterion(pred, Y_train)
-                else:
-                    main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
-                    pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
-                    total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs) * pseudo_loss
 
                 total_loss = criterion(pred, Y_train)
                 acc = accuracy(pred.data, Y_train, topk=(1,))[0]
@@ -161,27 +163,32 @@ def main(args):
                         pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
         
         acc_per_epoch = running_train_acc / args.iter_per_epoch
-        train_acc_log.append(acc_per_epoch)
         loss_per_epoch = running_loss / args.iter_per_epoch
+
         loss_log.append(loss_per_epoch)
+        train_acc_log.append(acc_per_epoch)
+
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        logger.info(f'==>>> epoch: {epoch}, train loss: {loss_per_epoch}, train accuracy: {acc_per_epoch}')
+
         running_loss, running_train_acc = 0.0, 0.0
 
-    # plot loss per epoch
-    plt.plot(loss_log)
-    plt.title('Loss per epoch')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid()
-    plt.savefig('loss.png')
+    with open('loss_log.txt', 'w') as f:
+        for item in loss_log:
+            f.write("%s\n" % item)
 
-    torch.save(model, args.modelpath)
+    with open('acc_log.txt', 'w') as f:
+        for item in train_acc_log:
+            f.write("%s\n" % item)
+
+    torch.save(model.state_dict(), 'task1_cifar10_250_t60.pth')
 
 
     ### Test
-    model.eval()
     running_acc = 0.0
     acc_log = []
+    
+    model.eval()
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
             inputs, labels = inputs.to(device), labels.to(device)
@@ -190,18 +197,12 @@ def main(args):
             acc = accuracy(pred.data, labels, topk=(1,))[0]
             running_acc += acc
 
-        test_accuracy = running_acc.item() / batch_idx
+        test_accuracy = running_acc.item()/batch_idx
         print('Accuracy: ', test_accuracy)
         acc_log.append(test_accuracy)
-        running_acc = 0.0
+        logger.info(f'==>>> test accuracy: {test_accuracy}')
 
-    # plot accuracy curve
-    plt.plot(acc_log)
-    plt.title('Accuracy')
-    plt.xlabel('Batch')
-    plt.ylabel('Accuracy')
-    plt.grid()
-    plt.savefig('accuracy.png')
+        running_acc = 0.0
 
             ####################################################################
 
@@ -215,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("--datapath", default="./data/", 
                         type=str, help="Path to the CIFAR-10/100 dataset")
     parser.add_argument('--num-labeled', type=int, 
-                        default=4000, help='Total number of labeled samples')
+                        default=250, help='Total number of labeled samples')
     parser.add_argument("--lr", default=0.03, type=float, 
                         help="The initial learning rate") 
     parser.add_argument("--momentum", default=0.9, type=float,
@@ -228,26 +229,26 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='test batchsize')
-    parser.add_argument('--total-iter', default=1024*512, type=int,
+    parser.add_argument('--total-iter', default=64*64, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=1024, type=int,
+    parser.add_argument('--iter-per-epoch', default=64, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
-    parser.add_argument('--threshold', type=float, default=0.95,
+    parser.add_argument('--threshold', type=float, default=0.6,
                         help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--dataout", type=str, default="./path/to/output/",
                         help="Path to save log files")
-    parser.add_argument("--model-depth", type=int, default=16,
+    parser.add_argument("--model-depth", type=int, default=28,
                         help="model depth for wide resnet") 
-    parser.add_argument("--model-width", type=int, default=8,
+    parser.add_argument("--model-width", type=int, default=2,
                         help="model width for wide resnet")
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
                         help="Milestones for the LR scheduler")# see if useful, else rm
-    parser.add_argument("--modelpath", default="./model/task1.pth", 
+    parser.add_argument("--modelpath", default="./model/wrn.pth", 
                         type=str, help="Path to save model")
-    parser.add_argument("--dropout", default=0.3, type=float, 
+    parser.add_argument("--dropout", default=0.1, type=float, 
                         help="Dropout rate for model")                    
     
     # Add more arguments if you need them
