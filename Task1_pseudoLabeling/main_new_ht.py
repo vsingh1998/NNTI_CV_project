@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import math
 from sys import prefix
@@ -13,8 +15,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data   import DataLoader
-
-import matplotlib.pyplot as plt
 
 import logging
 
@@ -128,9 +128,10 @@ def main(args):
                     pred_unlabeled = model(pseudo_dataseṭ̣_x)
 
                     total_loss = criterion(pred_unlabeled, pseudo_dataseṭ̣_y)
+                    acc = accuracy(pred_unlabeled.data, pseudo_dataseṭ̣_y, topk=(1,))[0]
 
                     running_loss += total_loss.item()
-                    running_train_acc += acc
+                    running_train_acc = (running_train_acc + acc) / 2.0
 
                     optimizer.zero_grad()
                     total_loss.backward()
@@ -227,7 +228,7 @@ def main(args):
     # plt.grid()
     # plt.savefig('loss.png')
 
-    torch.save(model.state_dict(), 'task1_cifar10_250_t60.pth')
+    torch.save(model.state_dict(), 'task1_cifar10_250_t60_newmain.pth')
 
 
     ### Test
