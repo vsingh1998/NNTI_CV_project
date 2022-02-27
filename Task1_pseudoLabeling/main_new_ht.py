@@ -129,15 +129,13 @@ def main(args):
 
                     total_loss = criterion(pred_unlabeled, pseudo_dataseṭ̣_y)
                     acc = accuracy(pred_unlabeled.data, pseudo_dataseṭ̣_y, topk=(1,))[0]
-
                     running_loss += total_loss.item()
-                    running_train_acc = (running_train_acc + acc) / 2.0
 
                     optimizer.zero_grad()
                     total_loss.backward()
                     optimizer.step()
                 
-                scheduler.step()
+        scheduler.step()
 
             else:
                 # train on labeled data for specified epochs (T1 in paper)
@@ -153,7 +151,6 @@ def main(args):
                     optimizer.zero_grad()
                     total_loss.backward()
                     optimizer.step()
-                    scheduler.step()
 
                 else:
 
@@ -182,7 +179,6 @@ def main(args):
                     optimizer.zero_grad()
                     total_loss.backward()
                     optimizer.step()
-                    scheduler.step()
 
             # make prediction on unlabeled data
             model.eval()
@@ -210,6 +206,7 @@ def main(args):
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
         logger.info(f'==>>> epoch: {epoch}, train loss: {loss_per_epoch}, train accuracy: {acc_per_epoch}')
 
+        scheduler.step()
         running_loss, running_train_acc = 0.0, 0.0
 
     with open('loss_log.txt', 'w') as f:
@@ -299,7 +296,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     # added arguments
-    parser.add_argument('--milestones', action='append', type=int, default=[], 
+    parser.add_argument('--milestones', action='append', type=int, default=[30, 80], 
                         help="Milestones for the LR scheduler")# see if useful, else rm
     parser.add_argument("--modelpath", default="./model/task1.pth", 
                         type=str, help="Path to save model")
