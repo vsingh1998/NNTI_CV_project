@@ -42,6 +42,7 @@ class VATLoss(nn.Module):
         loss = kldiv_loss(adv_pred, pred)
 
         if self.save_img:
+
             test = x + r_adv
             save_image(x[0], 'x1.png')
             save_image(test[0], 'x1_adv.png')

@@ -25,6 +25,7 @@ def main(args):
         args.num_classes = 100
         labeled_dataset, unlabeled_dataset, test_dataset = get_cifar100(args, 
                                                                 args.datapath)
+
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -38,36 +39,49 @@ def main(args):
                                 args.num_classes, widen_factor=args.model_width,
                                 dropRate= args.dropout)
     model       = model.to(device)
+    
+    path_dir = '../trained_models/task1/c100/'
+    path_list = ['task1_c100_2500_t60/', 'task1_c100_2500_t75/', 'task1_c100_2500_t95/']
+    labels = [0.60, 0.75, 0.95]
 
-    # plot loss per epoch
-    with open('trained_models/task1/loss_log.txt') as f:
-        lines = f.readlines()
-        loss_log = [float(line.split()[0]) for line in lines]
+    for i, path in enumerate(path_list):
+        final_path = path_dir + path
+        # plot loss per epoch
+        with open(final_path + 'loss_log.txt') as f:
+            lines = f.readlines()
+            loss_log = [float(line.split()[0]) for line in lines]
 
-    plt.figure(0)
-    plt.plot(loss_log)
-    plt.title('Loss per epoch')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid()
-    plt.savefig('loss.png')
+        plt.figure(0)
+        plt.plot(loss_log[0:250], label=labels[i])
+        plt.legend(loc="upper left")
+        plt.title('Loss per epoch')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.grid()
+    plt.savefig(path_dir + 'loss_250.png')
+
+    # path_list = ['task1_c10_4k_t60/']
 
     # plot accuracy per epoch
     acc_log = []
-    with open('trained_models/task1/acc_log.txt') as f:
-        lines = f.readlines()
-        for line in lines:
-            acc = line.split()[0]
-            acc = float(acc[acc.find("[")+1:acc.rfind("]")])
-            acc_log.append(acc)
+    for i, path in enumerate(path_list):
+        final_path = path_dir + path
+        with open(final_path + 'acc_log.txt') as f:
+            lines = f.readlines()
+            for line in lines:
+                acc = line.split()[0]
+                acc = float(acc[acc.find("[")+1:acc.rfind("]")])
+                acc_log.append(acc)
         
-    plt.figure(1)
-    plt.plot(acc_log)
-    plt.title('Accuracy per epoch')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.grid()
-    plt.savefig('acc.png')
+        plt.figure(1)
+        plt.plot(acc_log[0:250], label=labels[i])
+        plt.legend(loc="upper left")
+        plt.title('Accuracy per epoch')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.grid()
+        acc_log = []
+    plt.savefig(path_dir + 'acc_250.png')
 
     ### Test
     model.load_state_dict(torch.load(args.modelpath, map_location=device))

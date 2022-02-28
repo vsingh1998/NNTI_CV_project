@@ -63,7 +63,6 @@ def main(args):
                                 momentum=args.momentum, weight_decay=args.wd)
     # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
-    supervised_epochs = 40
     loss_log = []
     train_acc_log = []
     model.train()
@@ -139,7 +138,7 @@ def main(args):
     # plt.grid()
     # plt.savefig('loss.png')
 
-    torch.save(model.state_dict(), 'task2_cifar10_4000_supervised.pth')
+    torch.save(model.state_dict(), 'task2_cifar100_2500.pth')
 
     ### Test
     running_acc = 0.0
@@ -176,12 +175,12 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Virtual adversarial training \
                                         of CIFAR10/100 using with pytorch")
-    parser.add_argument("--dataset", default="cifar10", 
+    parser.add_argument("--dataset", default="cifar100", 
                         type=str, choices=["cifar10", "cifar100"])
     parser.add_argument("--datapath", default="./data/", 
                         type=str, help="Path to the CIFAR-10/100 dataset")
     parser.add_argument('--num-labeled', type=int, 
-                        default=4000, help='Total number of labeled samples')
+                        default=2500, help='Total number of labeled samples')
     parser.add_argument("--lr", default=0.001, type=float, 
                         help="The initial learning rate") 
     parser.add_argument("--momentum", default=0.9, type=float,
@@ -194,9 +193,9 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='train batchsize')
-    parser.add_argument('--total-iter', default=800*50, type=int,
+    parser.add_argument('--total-iter', default=256*100, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=800, type=int,
+    parser.add_argument('--iter-per-epoch', default=256, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")                        
