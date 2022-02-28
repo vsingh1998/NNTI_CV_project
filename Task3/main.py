@@ -54,8 +54,8 @@ def main(args):
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
     # Pseudo dataset initialization
-    pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
-    pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
+    pseudo_dataset_x = torch.tensor([]).to(device)
+    pseudo_dataset_y = torch.tensor([]).long().to(device)
 
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
     supervised_epochs = 1
@@ -106,11 +106,11 @@ def main(args):
                 scheduler.step()
 
             else:
-                pseudo_elements = torch.numel(pseudo_dataseṭ̣_x)
+                pseudo_elements = torch.numel(pseudo_dataset_x)
 
                 # labeled + pseudo combined training data
-                X_train = torch.cat((x_l, pseudo_dataseṭ̣_x), dim=0)
-                Y_train = torch.cat((y_l, pseudo_dataseṭ̣_y), dim=0)
+                X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
+                Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
 
                 # train model on combined data
                 model.train()
@@ -119,8 +119,8 @@ def main(args):
                 if pseudo_elements == 0:
                     total_loss = criterion(pred, Y_train)
                 else:
-                    main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
-                    pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
+                    main_loss   = criterion(pred[:-pseudo_dataset_x.shape[0]], Y_train[:-pseudo_dataset_x.shape[0]])
+                    pseudo_loss = criterion(pred[-pseudo_dataset_x.shape[0]:], Y_train[-pseudo_dataset_x.shape[0]:])
                     total_loss  = main_loss + pseudo_loss
 
                 total_loss = criterion(pred, Y_train)
@@ -142,19 +142,19 @@ def main(args):
                 pred_prob = F.softmax(pred_ul, dim=1)
                 
                 # reinitialize empty pseudo dataset for current iteration
-                pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
-                pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
+                pseudo_dataset_x = torch.tensor([]).to(device)
+                pseudo_dataset_y = torch.tensor([]).long().to(device)
 
                 # pseudo labeling
                 for idx_ul, pred in enumerate(pred_prob):
                     max_prob, max_prob_class = torch.max(pred, dim=-1)
                     if max_prob > args.threshold:
-                        pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
-                        pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
+                        pseudo_dataset_x = torch.cat((pseudo_dataset_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
+                        pseudo_dataset_y = torch.cat((pseudo_dataset_y, max_prob_class.unsqueeze(0)), dim=0)
 
-                pseudo_elements = torch.numel(pseudo_dataseṭ̣_x)
-                X_train = torch.cat((x_l, pseudo_dataseṭ̣_x), dim=0)
-                Y_train = torch.cat((y_l, pseudo_dataseṭ̣_y), dim=0)
+                pseudo_elements = torch.numel(pseudo_dataset_x)
+                X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
+                Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
 
                 if pseudo_elements != 0:
                     anchors, positives, negatives = create_triplet(X_train, Y_train)
