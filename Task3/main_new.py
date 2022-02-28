@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore")
 
 from dataloader import get_cifar10, get_cifar100
 from model.wrn import WideResNet
-from utils import accuracy, create_triplet
+from utils import accuracy, alpha_weight, create_triplet
 
 import torch
 import torch.nn as nn
@@ -49,6 +49,14 @@ def main(args):
                                 widen_factor= args.model_width)
     model       = model.to(device)
 
+    ## mathapacchi snn
+    print(list(model.modules()))
+    my_model = nn.Sequential(*list(model.modules())[:-1]) # strips off last linear layer
+    print('*********************')
+    print(my_model)
+
+    ##
+
     # define loss, optimizer and lr scheduler
     criterion = nn.CrossEntropyLoss().to(device)
     triplet_loss = nn.TripletMarginLoss().to(device) # for siamese network
@@ -61,7 +69,9 @@ def main(args):
     pseudo_dataset_y = torch.tensor([]).long().to(device)
 
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-    supervised_epochs = 40
+    supervised_epochs = 50
+    combined_epochs = 100
+
     loss_log = []
     train_acc_log = []
 
@@ -93,11 +103,14 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
 
-            # train on labeled data for specified epochs (T1 in paper)
-            if epoch < supervised_epochs:
-                pred = model.forward(x_l)
-                acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+            pseudo_elements = torch.numel(pseudo_dataset_x)
+            model.train()
+            
+            if args.num_labeled == 250 or args.num_labeled == 2500:
+                pred = model(x_l)
+
                 total_loss = criterion(pred, y_l)
+                acc = accuracy(pred.data, y_l, topk=(1,))[0]
 
                 running_loss += total_loss.item()
                 running_train_acc += acc
@@ -106,69 +119,99 @@ def main(args):
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
+            
+
+                if pseudo_elements != 0:
+                    pred_unlabeled = model(pseudo_dataset_x)
+
+                    total_loss = criterion(pred_unlabeled, pseudo_dataset_y)
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+                
                 scheduler.step()
 
             else:
-                pseudo_elements = torch.numel(pseudo_dataset_x)
+                # train on labeled data for specified epochs (T1 in paper)
+                if epoch < supervised_epochs:
+                    pred = model(x_l)
+                    acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+                    total_loss = criterion(pred, y_l)
 
-                # labeled + pseudo combined training data
-                X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
-                Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
 
-                # train model on combined data
-                model.train()
-                pred = model.forward(X_train, mode= 'classifier')
-
-                if pseudo_elements == 0:
-                    total_loss = criterion(pred, Y_train)
-                else:
-                    main_loss   = criterion(pred[:-pseudo_dataset_x.shape[0]], Y_train[:-pseudo_dataset_x.shape[0]])
-                    pseudo_loss = criterion(pred[-pseudo_dataset_x.shape[0]:], Y_train[-pseudo_dataset_x.shape[0]:])
-                    total_loss  = main_loss + pseudo_loss
-
-                total_loss = criterion(pred, Y_train)
-                acc = accuracy(pred.data, Y_train, topk=(1,))[0]
-
-                running_loss += total_loss.item()
-                running_train_acc += acc
-
-                # compute gradient and do SGD step
-                optimizer.zero_grad()
-                total_loss.backward()
-                optimizer.step()
-                scheduler.step()
-
-                # make prediction on unlabeled data
-                model.eval()
-                pred_ul = model.forward(x_ul, mode= 'classifier')
-                # get class probabilities
-                pred_prob = F.softmax(pred_ul, dim=1)
-                
-                # reinitialize empty pseudo dataset for current iteration
-                pseudo_dataset_x = torch.tensor([]).to(device)
-                pseudo_dataset_y = torch.tensor([]).long().to(device)
-
-                # pseudo labeling
-                for idx_ul, pred in enumerate(pred_prob):
-                    max_prob, max_prob_class = torch.max(pred, dim=-1)
-                    if max_prob > args.threshold:
-                        pseudo_dataset_x = torch.cat((pseudo_dataset_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
-                        pseudo_dataset_y = torch.cat((pseudo_dataset_y, max_prob_class.unsqueeze(0)), dim=0)
-
-                pseudo_elements = torch.numel(pseudo_dataset_x)
-                X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
-                Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
-
-                if pseudo_elements != 0:
-                    anchors, positives, negatives = create_triplet(X_train, Y_train)
-                    embed_A = model.forward(anchors.to(device), mode = 'embedding')
-                    embed_P = model.forward(positives.to(device), mode = 'embedding')
-                    embed_N = model.forward(negatives.to(device), mode = 'embedding')
-
-                    similarity_loss = triplet_loss(embed_A, embed_P, embed_N)
-                    print('similarity_loss', similarity_loss.item())
-                    similarity_loss.backward()
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
                     optimizer.step()
+                    scheduler.step()
+
+                elif supervised_epochs <= epoch < combined_epochs:
+
+                    # labeled + pseudo combined training data
+                    X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
+                    Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
+
+                    # train model on combined data
+                    model.train()
+                    pred = model(X_train)
+
+                    if pseudo_elements == 0:
+                        total_loss = criterion(pred, Y_train)
+                    else:
+                        main_loss   = criterion(pred[:-pseudo_dataset_x.shape[0]], Y_train[:-pseudo_dataset_x.shape[0]])
+                        pseudo_loss = criterion(pred[-pseudo_dataset_x.shape[0]:], Y_train[-pseudo_dataset_x.shape[0]:])
+                        total_loss  = main_loss + alpha_weight(epoch, T1= supervised_epochs) * pseudo_loss
+
+                    total_loss = criterion(pred, Y_train)
+                    acc = accuracy(pred.data, Y_train, topk=(1,))[0]
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+                    scheduler.step()
+
+            # make prediction on unlabeled data
+            model.eval()
+            pred_ul = model(x_ul)
+            # get class probabilities
+            pred_prob = F.softmax(pred_ul, dim=1)
+            
+            # reinitialize empty pseudo dataset for current iteration
+            pseudo_dataset_x = torch.tensor([]).to(device)
+            pseudo_dataset_y = torch.tensor([]).long().to(device)
+
+            # pseudo labeling
+            for idx_ul, pred in enumerate(pred_prob):
+                max_prob, max_prob_class = torch.max(pred, dim=-1)
+                if max_prob > args.threshold:
+                    pseudo_dataset_x = torch.cat((pseudo_dataset_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
+                    pseudo_dataset_y = torch.cat((pseudo_dataset_y, max_prob_class.unsqueeze(0)), dim=0)
+        
+        #siamese network
+        pseudo_elements = torch.numel(pseudo_dataset_x)
+        X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
+        Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
+
+        if pseudo_elements != 0:
+            anchors, positives, negatives = create_triplet(X_train, Y_train)
+            embed_A = model.forward(anchors.to(device), mode = 'embedding')
+            embed_P = model.forward(positives.to(device), mode = 'embedding')
+            embed_N = model.forward(negatives.to(device), mode = 'embedding')
+
+            similarity_loss = triplet_loss(embed_A, embed_P, embed_N)
+            print('similarity_loss', similarity_loss.item())
+            similarity_loss.backward()
+            optimizer.step()
 
         
         acc_per_epoch = running_train_acc / args.iter_per_epoch

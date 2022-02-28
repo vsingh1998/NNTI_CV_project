@@ -95,7 +95,6 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
 
-            print(y_l)
             ####################################################################
             pseudo_elements = torch.numel(pseudo_dataseṭ̣_x)
             model.train()

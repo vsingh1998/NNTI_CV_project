@@ -43,12 +43,25 @@ def entropy_loss(p_ul):
     return - torch.sum(p * F.log_softmax(p_ul)) / p_ul.shape[0]
 
 
+def alpha_weight(step, T1 = 30, T2 = 100, af = 3):
+    """
+    TODO
+    """
+
+    if step < T1:
+        return 0.0
+    elif step > T2:
+        return af
+    else:
+        return ((step-T1) / (T2-T1)) * af
+
+
 def create_triplet(X, Y):
     X = X.cpu()
     Y = Y.cpu()
-    anchors = torch.zeros(X.size())
-    positives = torch.zeros(X.size())
-    negatives = torch.zeros(X.size())
+    anchors = torch.tensor([])
+    positives = torch.tensor([])
+    negatives = torch.tensor([])
 
     for i in range(X.size(0)):
 
@@ -59,14 +72,14 @@ def create_triplet(X, Y):
         indices_for_pos = np.squeeze(np.where(Y == anchor_y))
         indices_for_neg = np.squeeze(np.where(Y != anchor_y))
 
-        if indices_for_pos.size == 0 or indices_for_neg.size == 0:
+        if indices_for_pos.size == 0 or indices_for_pos.size == 1:
             continue
 
         positive_x = X[indices_for_pos[np.random.randint(0, indices_for_pos.size)]]
         negative_x = X[indices_for_neg[np.random.randint(0, indices_for_neg.size)]]
 
-        anchors[i] = anchor_x
-        positives[i] = positive_x
-        negatives[i] = negative_x
+        anchors = torch.cat((anchors, anchor_x), dim=0)
+        positives = torch.cat((positives, positive_x), dim=0)
+        negatives = torch.cat((negatives, negative_x), dim=0)
 
     return anchors, positives, negatives
