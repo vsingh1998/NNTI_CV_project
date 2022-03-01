@@ -74,7 +74,7 @@ class WideResNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
 
-    def forward(self, x, mode= 'classifier'):
+    def forward(self, x):
         out = self.conv1(x)
         out = self.block1(out)
         out = self.block2(out)

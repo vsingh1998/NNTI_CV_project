@@ -189,15 +189,6 @@ def main(args):
         logger.info(f'==>>> epoch: {epoch}, train loss: {loss_per_epoch}, similarity loss: {similarity_loss_per_epoch} train accuracy: {acc_per_epoch}')
         running_loss, running_train_acc = 0.0, 0.0
 
-    # print('========OG=========', model)
-
-    # x = torch.ones(1,3,32,32)
-    # model_classifier = model.forward(x, mode = 'classifier')
-    # print('=======CLASSIFIER========', list(model_classifier.modules()))
-
-    # model_embed = model.forward(x, mode = 'embedding')
-    # print('=======EMBED=======', list(model_embed.modules()))
-
 ### Test
     running_acc = 0.0
     acc_log = []

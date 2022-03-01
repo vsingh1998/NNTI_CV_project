@@ -67,6 +67,7 @@ def create_triplet(X, Y):
 
         random_idx = np.random.randint(0, X.size(0))
         anchor_x = X[random_idx]
+        # print('anchor x', anchor_x.unsqueeze(0).size())
         anchor_y = Y[random_idx]
 
         indices_for_pos = np.squeeze(np.where(Y == anchor_y))
@@ -78,8 +79,16 @@ def create_triplet(X, Y):
         positive_x = X[indices_for_pos[np.random.randint(0, indices_for_pos.size)]]
         negative_x = X[indices_for_neg[np.random.randint(0, indices_for_neg.size)]]
 
-        anchors = torch.cat((anchors, anchor_x), dim=0)
-        positives = torch.cat((positives, positive_x), dim=0)
-        negatives = torch.cat((negatives, negative_x), dim=0)
+        if torch.numel(anchors) == 0:
+            anchors = anchor_x.unsqueeze(0)
+            positives = positive_x.unsqueeze(0)
+            negatives = negative_x.unsqueeze(0)
+        else:
+            anchors = torch.cat((anchors, anchor_x.unsqueeze(0)), dim=0)
+            positives = torch.cat((positives, positive_x.unsqueeze(0)), dim=0)
+            negatives = torch.cat((negatives, negative_x.unsqueeze(0)), dim=0)
 
+        # anchors = torch.stack([anchors, anchor_x.unsqueeze(0)], dim=0)
+        # positives = torch.cat([positives, positive_x.unsqueeze(0)], dim=0)
+        # negatives = torch.cat([negatives, negative_x.unsqueeze(0)], dim=0)
     return anchors, positives, negatives

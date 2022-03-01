@@ -15,7 +15,15 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-import matplotlib.pyplot as plt
+import logging
+
+#now we will create and configure logger
+logger = logging.getLogger()
+fhandler = logging.FileHandler(filename='out.log', mode='a')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fhandler.setFormatter(formatter)
+logger.addHandler(fhandler)
+logger.setLevel(logging.INFO)
 
 
 def main(args):
@@ -197,6 +205,7 @@ def main(args):
         loss_per_epoch = running_loss / args.iter_per_epoch
         loss_log.append(loss_per_epoch)
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        logger.info(f'==>>> epoch: {epoch}, train loss: {loss_per_epoch}, train accuracy: {acc_per_epoch}')
         running_loss, running_train_acc = 0.0, 0.0 
 
 
@@ -249,7 +258,6 @@ def main(args):
 
             if epoch < (args.epoch - 5):
                 anchors, positives, negatives = create_triplet(X_train, Y_train)
-                print('anchors', anchors.shape)
                 embed_A = siamese_nn.forward(anchors.to(device))
                 embed_P = siamese_nn(positives.to(device))
                 embed_N = siamese_nn(negatives.to(device))
@@ -283,17 +291,6 @@ def main(args):
         scheduler.step()
 
 
-
-
-                
-
-                
-
-
-
-
-
-
 ##### Testing
     running_acc = 0.0
     acc_log = []
@@ -310,6 +307,8 @@ def main(args):
         test_accuracy = running_acc.item() / batch_idx
         print('Accuracy: ', test_accuracy)
         acc_log.append(test_accuracy)
+        logger.info(f'==>>> test accuracy: {test_accuracy}')
+
         running_acc = 0.0
 
 
@@ -340,7 +339,7 @@ if __name__ == "__main__":
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
-    parser.add_argument('--threshold', type=float, default=0.4,
+    parser.add_argument('--threshold', type=float, default=0.1,
                         help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
