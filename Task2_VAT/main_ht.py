@@ -15,7 +15,7 @@ from torch.utils.data   import DataLoader
 
 import logging
 
-#now we will create and configure logger
+# create and configure logger
 logger = logging.getLogger()
 fhandler = logging.FileHandler(filename='out.log', mode='a')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -129,9 +129,9 @@ def main(args):
         for item in train_acc_log:
             f.write("%s\n" % item)
 
-    torch.save(model.state_dict(), 'task2_cifar100_2500.pth')
+    torch.save(model.state_dict(), args.modelpath)
 
-    ### Test
+    ## Test
     running_acc = 0.0
     acc_log = []
     
@@ -157,12 +157,12 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Virtual adversarial training \
                                         of CIFAR10/100 using with pytorch")
-    parser.add_argument("--dataset", default="cifar100", 
+    parser.add_argument("--dataset", default="cifar10", 
                         type=str, choices=["cifar10", "cifar100"])
     parser.add_argument("--datapath", default="./data/", 
                         type=str, help="Path to the CIFAR-10/100 dataset")
     parser.add_argument('--num-labeled', type=int, 
-                        default=2500, help='Total number of labeled samples')
+                        default=4000, help='Total number of labeled samples')
     parser.add_argument("--lr", default=0.001, type=float, 
                         help="The initial learning rate") 
     parser.add_argument("--momentum", default=0.9, type=float,
@@ -175,9 +175,9 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='train batchsize')
-    parser.add_argument('--total-iter', default=256*100, type=int,
+    parser.add_argument('--total-iter', default=800*150, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=256, type=int,
+    parser.add_argument('--iter-per-epoch', default=800, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")                        
@@ -191,15 +191,15 @@ if __name__ == "__main__":
                         help="model width for wide resnet")
     parser.add_argument("--vat-xi", default=1e-6, type=float, 
                         help="VAT xi parameter")
-    parser.add_argument("--vat-eps", default=6.0, type=float, 
+    parser.add_argument("--vat-eps", default=8.0, type=float, 
                         help="VAT epsilon parameter") 
     parser.add_argument("--vat-iter", default=1, type=int, 
                         help="VAT iteration parameter")
 
     # added arguments
-    parser.add_argument('--milestones', action='append', type=int, default=[], 
+    parser.add_argument('--milestones', action='append', type=int, default=[40, 80], 
                         help="Milestones for the LR scheduler")# see if useful, else rm
-    parser.add_argument("--modelpath", default="./model/task2.pth", 
+    parser.add_argument("--modelpath", default="./task2_c10_4k_eps8.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.0, type=float, 
                         help="Dropout rate for model") 

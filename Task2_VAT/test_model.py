@@ -38,7 +38,7 @@ def main(args):
                                 args.num_classes, widen_factor=args.model_width,
                                 dropRate= args.dropout)
     model       = model.to(device)
-
+    '''
     # plot loss per epoch
     with open('../trained_models/task2_cifar10_1e6_8_160k_800_16_8__0.3/loss_log.txt') as f:
         lines = f.readlines()
@@ -61,21 +61,18 @@ def main(args):
             acc = line.split()[0]
             acc = float(acc[acc.find("[")+1:acc.rfind("]")])
             acc_log.append(acc)
-<<<<<<< HEAD
 
-=======
-    
-    plt.figure(1)
->>>>>>> 5c31d446df82844fa3b16fc07a3cd0da6181e10d
     plt.plot(acc_log)
     plt.title('Accuracy per epoch')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.grid()
     plt.savefig('acc.png')
-
+    '''
     ### Test
     model.load_state_dict(torch.load(args.modelpath, map_location=device))
+    out = test_cifar10(test_dataset, model)
+    
     running_acc = 0.0
     acc_log = []
     
@@ -95,8 +92,59 @@ def main(args):
 
 
             ####################################################################
+# filepath = "./path/to/model.pth.tar"
+def test_cifar10(testdataset, model):
+    '''
+    args: 
+        testdataset : (torch.utils.data.Dataset)
+        filepath    : (str) The path to the model file that is saved
+    returns : (torch.Tensor) logits of the testdataset with shape 
+                [num_samples, 10]. Apply softmax to the logits
+    
+    Description:
+        This function loads the model given in the filepath and returns the 
+        logits of the testdataset which is a torch.utils.data.Dataset. You can
+        save the arguments needed to load the models (e.g. width, depth etc) 
+        with the model file. Assume testdataset is like CIFAR-10. Test this
+        function with the testdataset returned by get_cifar10()
+    '''
+    # model = torch.load(filepath)
+    # model.eval()
 
+    inputs, labels = testdataset
 
+    preds = model(inputs)
+    logits = torch.nn.functional.one_hot(preds, num_classes=10)
+
+    out = torch.nn.functional.softmax(logits, dim=1)
+    print('labels and pred', labels, out)
+    
+    return torch.nn.functional.softmax(logits, dim=1)
+
+def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
+    '''
+    args: 
+        testdataset : (torch.utils.data.Dataset)
+        filepath    : (str) The path to the model file that is saved
+    returns : (torch.Tensor) logits of the testdataset with shape 
+                [num_samples, 100]. Apply softmax to the logits
+    
+    Description:
+        This function loads the model given in the filepath and returns the 
+        logits of the testdataset which is a torch.utils.data.Dataset. You can
+        save the arguments needed to load the models (e.g. width, depth etc) 
+        with the model file. Assume testdataset is like CIFAR-100. Test this
+        function with the testdataset returned by get_cifar100()
+    '''
+    model = torch.load(filepath)
+    model.eval()
+
+    inputs, labels = testdataset
+
+    preds = model(inputs)
+    logits = torch.nn.functional.one_hot(preds, num_classes=100)
+
+    return torch.nn.functional.softmax(logits, dim=1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pseudo labeling \

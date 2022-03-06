@@ -14,7 +14,7 @@ class VATLoss(nn.Module):
         self.vat_iter = args.vat_iter
         # flag to get adversarial example for report
         # set to True to get image
-        self.save_img = False 
+        self.save_img = True 
 
     def forward(self, model, x):
         # prepare a random tensor r 

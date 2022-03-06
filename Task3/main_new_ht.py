@@ -73,7 +73,7 @@ def main(args):
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
     # epochs of supervised training
     supervised_epochs = 100
-    # epochs of supervised + pseudo labels learning, outermost loop
+    # epochs of supervised + pseudo labels learning, first outermost loop
     combined_epochs = supervised_epochs + 100
 
     loss_log = []
@@ -274,8 +274,10 @@ def main(args):
             for idx_ul, pred in enumerate(pred_prob):
                 max_prob, max_prob_class = torch.max(pred, dim=-1)
                 if max_prob > args.threshold:
-                    pseudo_dataset_x = torch.cat((pseudo_dataset_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
-                    pseudo_dataset_y = torch.cat((pseudo_dataset_y, max_prob_class.unsqueeze(0)), dim=0)
+                    pseudo_dataset_x = torch.cat((pseudo_dataset_x, 
+                                                    x_ul[idx_ul].unsqueeze(0)), dim=0)
+                    pseudo_dataset_y = torch.cat((pseudo_dataset_y, 
+                                                    max_prob_class.unsqueeze(0)), dim=0)
             
             # labeled + pseudo combined training data
             X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
@@ -290,7 +292,9 @@ def main(args):
                 # print(embed_A)
                 # print('size embed_A', embed_A.size())
 
-                embeddings = torch.cat((F.normalize(embed_A, p=2, dim=1), F.normalize(embed_P, p=2, dim=1), F.normalize(embed_N, p=2, dim=1)), dim=0)
+                embeddings = torch.cat((F.normalize(embed_A, p=2, dim=1), 
+                                        F.normalize(embed_P, p=2, dim=1), 
+                                        F.normalize(embed_N, p=2, dim=1)), dim=0)
                 labels = torch.cat((anchors_y, positives_y, negatives_y), dim=0)
 
                 # print(embeddings.size(), labels.size())

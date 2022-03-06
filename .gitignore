@@ -1,12 +1,13 @@
 # exclude everything
 .DS_Store
 papers/*
+trained_models/*
+FixMatch/*
+
 Task1_pseudoLabeling/data/*
 Task1_pseudoLabeling/__pycache__
 Task1_pseudoLabeling/model/__pycache__
 Task1_pseudoLabeling/model/.DS_Store
-trained_models/*
-FixMatch/*
 
 Task2_VAT/data/*
 Task2_VAT/__pycache__
@@ -21,3 +22,4 @@ Task3/model/.DS_Store
 # exception to the rule
 !Task1_pseudoLabeling/data/.gitkeep 
 !Task2_VAT/data/.gitkeep
+!Task3/data/.gitkeep

@@ -26,6 +26,9 @@ def test_cifar10(testdataset, filepath = "./path/to/model.pth.tar"):
     preds = model(inputs)
     logits = torch.nn.functional.one_hot(preds, num_classes=10)
 
+    out = torch.nn.functional.softmax(logits, dim=1)
+    print('labels and pred', labels, out)
+    
     return torch.nn.functional.softmax(logits, dim=1)
 
 def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
