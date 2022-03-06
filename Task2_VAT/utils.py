@@ -38,4 +38,4 @@ def L2_norm(x):
 
 def entropy_loss(p_ul):
     p = F.softmax(p_ul, dim=1)
-    return - torch.sum(p * F.log_softmax(p_ul)) / p_ul.shape[0]
+    return -(p*F.log_softmax(p_ul, dim=1)).sum(dim=1).mean(dim=0)

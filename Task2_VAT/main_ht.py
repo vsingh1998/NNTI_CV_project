@@ -61,17 +61,15 @@ def main(args):
     vat_loss = VATLoss(args)
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
-    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
     loss_log = []
     train_acc_log = []
-    model.train()
     ############################################################################
     
     for epoch in range(args.epoch):
         running_loss = 0.0
         running_train_acc = 0.0
-
+        model.train()
         for i in range(args.iter_per_epoch):
             try:
                 x_l, y_l    = next(labeled_loader)
@@ -95,7 +93,8 @@ def main(args):
             x_ul        = x_ul.to(device)
             ####################################################################
             # TODO: SUPPLY you code
-            v_loss = vat_loss.forward(model, x_ul)
+            v_loss = vat_loss.forward(model.eval(), x_ul)
+            model.train()
             pred = model(x_l)
             classification_loss = criterion(pred, y_l)
 
@@ -130,14 +129,6 @@ def main(args):
         for item in train_acc_log:
             f.write("%s\n" % item)
 
-    # plot loss per epoch
-    # plt.plot(loss_log)
-    # plt.title('Loss per epoch')
-    # plt.xlabel('Epoch')
-    # plt.ylabel('Loss')
-    # plt.grid()
-    # plt.savefig('loss.png')
-
     torch.save(model.state_dict(), 'task2_cifar100_2500.pth')
 
     ### Test
@@ -158,15 +149,6 @@ def main(args):
         acc_log.append(test_accuracy)
         logger.info(f'==>>> test accuracy: {test_accuracy}')
         running_acc = 0.0
-
-    # plot accuracy curve
-    # plt.plot(acc_log)
-    # plt.title('Accuracy')
-    # plt.xlabel('Batch')
-    # plt.ylabel('Accuracy')
-    # plt.grid()
-    # plt.savefig('accuracy.png')
-    # """
         
             ####################################################################
 

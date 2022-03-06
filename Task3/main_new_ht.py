@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import math
 import copy
@@ -7,7 +9,7 @@ from collections import OrderedDict
 
 from dataloader import get_cifar10, get_cifar100
 from model.wrn import WideResNet
-from utils import accuracy, alpha_weight, create_triplet
+from utils import accuracy, alpha_weight, create_triplet, TripletLoss
 
 import torch
 import torch.nn as nn
@@ -17,7 +19,7 @@ from torch.utils.data import DataLoader
 
 import logging
 
-#now we will create and configure logger
+# create and configure logger
 logger = logging.getLogger()
 fhandler = logging.FileHandler(filename='out.log', mode='a')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,9 +31,6 @@ logger.setLevel(logging.INFO)
 def main(args):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    # generate dataloaders
-    # labeled_loader, unlabeled_loader, test_loader = generate_dataloaders(args)
 
     if args.dataset == "cifar10":
         args.num_classes = 10
@@ -58,11 +57,11 @@ def main(args):
     model       = WideResNet(depth= args.model_depth, num_classes= args.num_classes, 
                                 widen_factor= args.model_width)
     model       = model.to(device)
-    print(model)
 
     # define loss, optimizer and lr scheduler
     criterion = nn.CrossEntropyLoss().to(device)
-    triplet_loss = nn.TripletMarginLoss().to(device) # for siamese network
+    # triplet_loss = nn.TripletMarginLoss().to(device) # for siamese network
+    triplet_loss = TripletLoss(device)
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
@@ -72,8 +71,10 @@ def main(args):
     pseudo_dataset_y = torch.tensor([]).long().to(device)
 
     args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-    supervised_epochs = 1
-    combined_epochs = 2
+    # epochs of supervised training
+    supervised_epochs = 100
+    # epochs of supervised + pseudo labels learning, outermost loop
+    combined_epochs = supervised_epochs + 100
 
     loss_log = []
     train_acc_log = []
@@ -171,7 +172,6 @@ def main(args):
                         pseudo_loss = criterion(pred[-pseudo_dataset_x.shape[0]:], Y_train[-pseudo_dataset_x.shape[0]:])
                         total_loss  = main_loss + alpha_weight(epoch, T1= supervised_epochs) * pseudo_loss
 
-                    total_loss = criterion(pred, Y_train)
                     acc = accuracy(pred.data, Y_train, topk=(1,))[0]
 
                     running_loss += total_loss.item()
@@ -209,29 +209,54 @@ def main(args):
         running_loss, running_train_acc = 0.0, 0.0 
 
 
-    ### fine-tune the model to learn embeddings in feature space
+    # fine-tune the model to learn embeddings in feature space
     # reinitialize empty pseudo dataset for current iteration
     pseudo_dataset_x = torch.tensor([]).to(device)
     pseudo_dataset_y = torch.tensor([]).long().to(device)
-    n_inputs = model.fc.out_features
-    print('n_inputs line 208', n_inputs)
-    siamese_nn = copy.deepcopy(model)
-    # siamese_nn = nn.Sequential(*list(model.children())[:-1]) # strips off last linear layer
     
-    # classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(8, 128))]))
-    siamese_nn.fc = nn.Linear(model.fc.in_features, 128)
-    # print('===========siamese_nn==========', siamese_nn)
-    print('===========siamese_nn==========', siamese_nn)
-    siamese_nn.train()
-    add_classifier = True 
+    snn_base = copy.deepcopy(model)
+    snn_base.fc = nn.Linear(model.fc.in_features, 256)
+    fc_relu = nn.ReLU(inplace=True)
+    fc2 = nn.Linear(snn_base.fc.out_features, 128)
+    fc_last = nn.Linear(128, 64)
+    siamese_nn = nn.Sequential(snn_base, fc_relu, fc2, fc_relu, fc_last)
 
+    optimizer = optim.SGD(siamese_nn.parameters(), args.lr,
+                                momentum=args.momentum, weight_decay=args.wd)
+
+    for param in list(siamese_nn.children())[:-3]:
+        param.requires_grad = False
+
+    siamese_nn = siamese_nn.to(device)
+    siamese_nn.train()
+
+    add_classifier = True 
+    similarity_loss_log = []
+ 
+    # run for 300 epochs starting from 200th
+    # generate labels with 90% confidence and learn embeddings for first 70 epochs
+    # in last 30 epochs, learns weights for last layer of classifier for final label prediction
     for epoch in range(combined_epochs, args.epoch):
-        running_loss = 0.0
-        running_train_acc = 0.0
+        running_similarity_loss = 0.0
 
         for i in range(args.iter_per_epoch):
-            x_l, y_l    = next(labeled_loader)
-            x_ul, _     = next(unlabeled_loader)
+            try:
+                x_l, y_l    = next(labeled_loader)
+            except StopIteration:
+                labeled_loader      = iter(DataLoader(labeled_dataset, 
+                                            batch_size = args.train_batch, 
+                                            shuffle = True, 
+                                            num_workers=args.num_workers))
+                x_l, y_l    = next(labeled_loader)
+            
+            try:
+                x_ul, _     = next(unlabeled_loader)
+            except StopIteration:
+                unlabeled_loader    = iter(DataLoader(unlabeled_dataset, 
+                                            batch_size=args.train_batch,
+                                            shuffle = True, 
+                                            num_workers=args.num_workers))
+                x_ul, _     = next(unlabeled_loader)
             
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
@@ -256,51 +281,66 @@ def main(args):
             X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
             Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
 
-            if epoch < (args.epoch - 5):
-                anchors, positives, negatives = create_triplet(X_train, Y_train)
-                embed_A = siamese_nn.forward(anchors.to(device))
+            if epoch < (args.epoch - 30):
+                anchors, positives, negatives, anchors_y, positives_y, negatives_y = create_triplet(X_train, Y_train)
+                embed_A = siamese_nn(anchors.to(device))
                 embed_P = siamese_nn(positives.to(device))
                 embed_N = siamese_nn(negatives.to(device))
 
-                similarity_loss = triplet_loss(embed_A, embed_P, embed_N)
+                # print(embed_A)
+                # print('size embed_A', embed_A.size())
+
+                embeddings = torch.cat((F.normalize(embed_A, p=2, dim=1), F.normalize(embed_P, p=2, dim=1), F.normalize(embed_N, p=2, dim=1)), dim=0)
+                labels = torch.cat((anchors_y, positives_y, negatives_y), dim=0)
+
+                # print(embeddings.size(), labels.size())
+
+                # similarity_loss = triplet_loss(embed_A, embed_P, embed_N)
+                similarity_loss = triplet_loss(embeddings, labels)
+                running_similarity_loss += similarity_loss.item()
+
                 print('similarity loss', similarity_loss.item())
                 similarity_loss.backward()
                 optimizer.step()
 
             elif add_classifier:
-                for param in siamese_nn.parameters():
+                last_layer = nn.Linear(64, args.num_classes)
+                snn_classifier = nn.Sequential(siamese_nn, fc_relu, last_layer)
+                optimizer = optim.SGD(snn_classifier.parameters(), args.lr,
+                                momentum=args.momentum, weight_decay=args.wd)
+
+                for param in list(snn_classifier.children())[:-1]:
                     param.requires_grad = False
 
-                n_inputs = siamese_nn.fc.in_features
-                siamese_nn.fc = nn.Linear(siamese_nn.fc.in_features, args.num_classes)
-                
-                for param in list(siamese_nn.children())[-2:]:
-                    param.requires_grad = True
-                add_classifier = False 
-                print('******final****', siamese_nn)
+                add_classifier = False
 
             else:
-                pred = siamese_nn(X_train)
-                print(pred.shape)
-                print(Y_train.shape)
+                snn_classifier = snn_classifier.to(device)
+                snn_classifier.train()
+                pred = snn_classifier(X_train)
                 classifier_loss = criterion(pred, Y_train)
 
                 optimizer.zero_grad()
                 classifier_loss.backward()
                 optimizer.step()
+
+        similarity_loss_per_epoch = running_similarity_loss / args.iter_per_epoch
+        similarity_loss_log.append(similarity_loss_per_epoch)
+        logger.info(f'==>>> similarity loss: {similarity_loss}')
         scheduler.step()
 
+    torch.save(snn_classifier.state_dict(), 'task3.pth')
 
-##### Testing
+    ## Testing
     running_acc = 0.0
     acc_log = []
     
-    siamese_nn.eval()
+    snn_classifier.eval()
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
             inputs, labels = inputs.to(device), labels.to(device)
 
-            pred = siamese_nn(inputs)
+            pred = snn_classifier(inputs)
             acc = accuracy(pred.data, labels, topk=(1,))[0]
             running_acc += acc
 
@@ -333,20 +373,20 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=64, type=int,
                         help='test batchsize')
-    parser.add_argument('--total-iter', default=2*6, type=int,
+    parser.add_argument('--total-iter', default=800*300, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=2, type=int,
+    parser.add_argument('--iter-per-epoch', default=800, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
-    parser.add_argument('--threshold', type=float, default=0.1,
+    parser.add_argument('--threshold', type=float, default=0.9,
                         help='Confidence Threshold for pseudo labeling')
     parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     parser.add_argument('--milestones', action='append', type=int, default=[40, 80], 
-                        help="Milestones for the LR scheduler")# see if useful, else rm
+                        help="Milestones for the LR scheduler") # see if useful, else rm
     parser.add_argument("--modelpath", default="./model/task3.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.0, type=float, 

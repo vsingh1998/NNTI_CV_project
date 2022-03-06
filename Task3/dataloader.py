@@ -31,6 +31,7 @@ def x_u_split(args, labels):
     np.random.shuffle(labeled_idx)
     return labeled_idx, unlabeled_idx
 
+
 def get_cifar10(args, root):
     transform_labeled = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -96,6 +97,7 @@ def get_cifar100(args, root):
 
     return train_labeled_dataset, train_unlabeled_dataset, test_dataset
 
+
 class CIFAR10SSL(datasets.CIFAR10):
     def __init__(self, root, indexs, train=True,
                  transform=None, target_transform=None,
@@ -146,6 +148,7 @@ class CIFAR100SSL(datasets.CIFAR100):
 
         target = torch.tensor(target)
         return torch.tensor(img), target.long()
+
 '''
 def generate_dataloaders(args):
     if args.dataset == "cifar10":
