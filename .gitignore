@@ -13,6 +13,11 @@ Task2_VAT/__pycache__
 Task2_VAT/model/__pycache__
 Task2_VAT/model/.DS_Store
 
+Task3/data/*
+Task3/__pycache__
+Task3/model/__pycache__
+Task3/model/.DS_Store
+
 # exception to the rule
 !Task1_pseudoLabeling/data/.gitkeep 
 !Task2_VAT/data/.gitkeep
