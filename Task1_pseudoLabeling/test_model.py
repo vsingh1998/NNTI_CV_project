@@ -40,8 +40,8 @@ def main(args):
                                 dropRate= args.dropout)
     model       = model.to(device)
     
-    path_dir = '../trained_models/task1/c100/'
-    path_list = ['task1_c100_2500_t60/', 'task1_c100_2500_t75/', 'task1_c100_2500_t95/']
+    path_dir = '../trained_models/task1/c10/'
+    path_list = ['task1_c10_4k_t60/', 'task1_c10_4k_t75/', 'task1_c10_4k_t95/']
     labels = [0.60, 0.75, 0.95]
 
     for i, path in enumerate(path_list):
@@ -54,11 +54,11 @@ def main(args):
         plt.figure(0)
         plt.plot(loss_log[0:250], label=labels[i])
         plt.legend(loc="upper left")
-        plt.title('Loss per epoch')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
+        plt.title('Loss per epoch', fontsize=25)
+        plt.xlabel('Epoch', fontsize=20)
+        plt.ylabel('Loss', fontsize=20)
         plt.grid()
-    plt.savefig(path_dir + 'loss_250.png')
+    plt.savefig(path_dir + 'loss_4k.png')
 
     # path_list = ['task1_c10_4k_t60/']
 
@@ -76,12 +76,12 @@ def main(args):
         plt.figure(1)
         plt.plot(acc_log[0:250], label=labels[i])
         plt.legend(loc="upper left")
-        plt.title('Accuracy per epoch')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
+        plt.title('Accuracy per epoch', fontsize=25)
+        plt.xlabel('Epoch', fontsize=20)
+        plt.ylabel('Accuracy', fontsize=20)
         plt.grid()
         acc_log = []
-    plt.savefig(path_dir + 'acc_250.png')
+    plt.savefig(path_dir + 'acc_4k.png')
 
     ### Test
     model.load_state_dict(torch.load(args.modelpath, map_location=device))

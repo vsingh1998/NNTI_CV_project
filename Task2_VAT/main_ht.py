@@ -189,7 +189,7 @@ if __name__ == "__main__":
                         help="model depth for wide resnet") 
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
-    parser.add_argument("--vat-xi", default=1e-6, type=float, 
+    parser.add_argument("--vat-xi", default=10, type=float, #1e-6
                         help="VAT xi parameter")
     parser.add_argument("--vat-eps", default=8.0, type=float, 
                         help="VAT epsilon parameter") 

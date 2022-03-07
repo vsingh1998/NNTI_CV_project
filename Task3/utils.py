@@ -60,52 +60,65 @@ def alpha_weight(step, T1 = 30, T2 = 100, af = 3):
 def create_triplet(X, Y):
     X = X.cpu()
     Y = Y.cpu()
-    anchors = torch.tensor([])
-    positives = torch.tensor([])
-    negatives = torch.tensor([])
+    anchors, positives, negatives = torch.tensor([]), torch.tensor([]), torch.tensor([])
     anchors_y, positives_y, negatives_y = torch.tensor([], dtype=torch.long), torch.tensor([], dtype=torch.long), torch.tensor([], dtype=torch.long) 
 
     for i in range(X.size(0)):
-
-        random_idx = np.random.randint(0, X.size(0))
-        anchor_x = X[random_idx]
-        anchor_y = Y[random_idx]
+        print(i)
+        anchor_x = X[i]
+        anchor_y = Y[i]
 
         indices_for_pos = np.squeeze(np.where(Y == anchor_y))
+        # print(indices_for_pos)
         indices_for_neg = np.squeeze(np.where(Y != anchor_y))
+        # print(indices_for_neg)
 
         if indices_for_pos.size == 0 or indices_for_pos.size == 1:
             continue
 
-        pos_indices = indices_for_pos[np.random.randint(0, indices_for_pos.size)]
-        neg_indices = indices_for_neg[np.random.randint(0, indices_for_neg.size)]
-        positive_x, positive_y = X[pos_indices], Y[pos_indices]
-        negative_x, negative_y = X[neg_indices], Y[neg_indices]
+        negative_x, negative_y = X[indices_for_neg], Y[indices_for_neg]
+        anchor_x = anchor_x.unsqueeze(0)
+        # print('initial anchor_x shape', anchor_x.size())
+        anchor_y = anchor_y.unsqueeze(0)
+        # print('negative_x.size()', negative_x.size())
 
-        # if torch.numel(anchors) == 0:
-        #     anchors = anchor_x.unsqueeze(0)
-        #     positives = positive_x.unsqueeze(0)
-        #     negatives = negative_x.unsqueeze(0)
-        # else:
-        anchors = torch.cat((anchors, anchor_x.unsqueeze(0)), dim=0)
-        positives = torch.cat((positives, positive_x.unsqueeze(0)), dim=0)
-        negatives = torch.cat((negatives, negative_x.unsqueeze(0)), dim=0)
+        # pos_indices = indices_for_pos[np.random.randint(0, indices_for_pos.size)]
+        # neg_indices = indices_for_neg[np.random.randint(0, indices_for_neg.size)]
+        # positive_x, positive_y = X[pos_indices], Y[pos_indices]
+        # negative_x, negative_y = X[neg_indices], Y[neg_indices]
+        first_run = True
+        for pos_idx in indices_for_pos:
+            positive_x, positive_y = X[pos_idx], Y[pos_idx]
+            positive_x = positive_x.unsqueeze(0)
+            positive_y = positive_y.unsqueeze(0)
 
-        anchors_y = torch.cat((anchors_y, anchor_y.unsqueeze(0)), dim=0)
-        positives_y = torch.cat((positives_y, positive_y.unsqueeze(0)), dim=0)
-        negatives_y = torch.cat((negatives_y, negative_y.unsqueeze(0)), dim=0)
+            if first_run:
+                anchor_x = anchor_x.repeat(negative_x.size(0), 1, 1, 1)
+                # print('anchor_x.shape', anchor_x.shape)
+                anchor_y = torch.cat(negative_x.size(0) * [anchor_y], dim=0)
+                first_run = False
+
+            positive_x = torch.cat(negative_x.size(0) * [positive_x], dim=0)
+            # print('positive_x.shape', positive_x.shape)
+            positive_y = torch.cat(negative_x.size(0) * [positive_y], dim=0)
+            # print('positive_y.shape', positive_y.shape)
+            # anchor_x = torch.cat(negative_x.size(0) * [anchor_x], dim=0)
+            
+            # print('anchor_x.size()', anchor_x.size())
+            anchors = torch.cat((anchors, anchor_x), dim=0)
+            print('anchors.size()', anchors.size())
+            positives = torch.cat((positives, positive_x), dim=0)
+            negatives = torch.cat((negatives, negative_x), dim=0)
+            # print('negatives.size()', negatives.size())
+
+            anchors_y = torch.cat((anchors_y, anchor_y), dim=0)
+            positives_y = torch.cat((positives_y, positive_y), dim=0)
+            negatives_y = torch.cat((negatives_y, negative_y), dim=0)
 
     return anchors, positives, negatives, anchors_y, positives_y, negatives_y
 
 
 def pairwise_distance_torch(embeddings, device):
-    """Computes the pairwise distance matrix with numerical stability.
-    output[i, j] = || feature[i, :] - feature[j, :] ||_2
-    Args:
-      embeddings: 2-D Tensor of size [number of data, feature dimension].
-    Returns:
-      pairwise_distances: 2-D Tensor of size [number of data, number of data].
-    """
 
     # pairwise distance matrix with precise embeddings
     precise_embeddings = embeddings.to(dtype=torch.float32)
@@ -135,20 +148,6 @@ def pairwise_distance_torch(embeddings, device):
 
 
 def TripletSemiHardLoss(y_true, y_pred, device, margin=1.0):
-    """Computes the triplet loss_functions with semi-hard negative mining.
-       The loss_functions encourages the positive distances (between a pair of embeddings
-       with the same labels) to be smaller than the minimum negative distance
-       among which are at least greater than the positive distance plus the
-       margin constant (called semi-hard negative) in the mini-batch.
-       If no such negative exists, uses the largest negative distance instead.
-       See: https://arxiv.org/abs/1503.03832.
-       We expect labels `y_true` to be provided as 1-D integer `Tensor` with shape
-       [batch_size] of multi-class integer labels. And embeddings `y_pred` must be
-       2-D float `Tensor` of l2 normalized embedding vectors.
-       Args:
-         margin: Float, margin term in the loss_functions definition. Default value is 1.0.
-         name: Optional name for the op.
-       """
 
     labels, embeddings = y_true, y_pred
 

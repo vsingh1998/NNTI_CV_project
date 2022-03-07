@@ -46,6 +46,6 @@ class VATLoss(nn.Module):
             test = x + r_adv
             save_image(x[0], 'x1.png')
             save_image(test[0], 'x1_adv.png')
-            self.save_img = False
+            self.save_img = True
 
         return loss

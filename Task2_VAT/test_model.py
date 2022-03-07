@@ -38,7 +38,7 @@ def main(args):
                                 args.num_classes, widen_factor=args.model_width,
                                 dropRate= args.dropout)
     model       = model.to(device)
-    '''
+    
     # plot loss per epoch
     with open('../trained_models/task2_cifar10_1e6_8_160k_800_16_8__0.3/loss_log.txt') as f:
         lines = f.readlines()
@@ -68,15 +68,13 @@ def main(args):
     plt.ylabel('Accuracy')
     plt.grid()
     plt.savefig('acc.png')
-    '''
+    
     ### Test
     model.load_state_dict(torch.load(args.modelpath, map_location=device))
-    out = test_cifar10(test_dataset, model)
-    
     running_acc = 0.0
     acc_log = []
     
-    model.eval()
+    # model.eval()
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
             inputs, labels = inputs.to(device), labels.to(device)
@@ -92,59 +90,7 @@ def main(args):
 
 
             ####################################################################
-# filepath = "./path/to/model.pth.tar"
-def test_cifar10(testdataset, model):
-    '''
-    args: 
-        testdataset : (torch.utils.data.Dataset)
-        filepath    : (str) The path to the model file that is saved
-    returns : (torch.Tensor) logits of the testdataset with shape 
-                [num_samples, 10]. Apply softmax to the logits
-    
-    Description:
-        This function loads the model given in the filepath and returns the 
-        logits of the testdataset which is a torch.utils.data.Dataset. You can
-        save the arguments needed to load the models (e.g. width, depth etc) 
-        with the model file. Assume testdataset is like CIFAR-10. Test this
-        function with the testdataset returned by get_cifar10()
-    '''
-    # model = torch.load(filepath)
-    # model.eval()
 
-    inputs, labels = testdataset
-
-    preds = model(inputs)
-    logits = torch.nn.functional.one_hot(preds, num_classes=10)
-
-    out = torch.nn.functional.softmax(logits, dim=1)
-    print('labels and pred', labels, out)
-    
-    return torch.nn.functional.softmax(logits, dim=1)
-
-def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
-    '''
-    args: 
-        testdataset : (torch.utils.data.Dataset)
-        filepath    : (str) The path to the model file that is saved
-    returns : (torch.Tensor) logits of the testdataset with shape 
-                [num_samples, 100]. Apply softmax to the logits
-    
-    Description:
-        This function loads the model given in the filepath and returns the 
-        logits of the testdataset which is a torch.utils.data.Dataset. You can
-        save the arguments needed to load the models (e.g. width, depth etc) 
-        with the model file. Assume testdataset is like CIFAR-100. Test this
-        function with the testdataset returned by get_cifar100()
-    '''
-    model = torch.load(filepath)
-    model.eval()
-
-    inputs, labels = testdataset
-
-    preds = model(inputs)
-    logits = torch.nn.functional.one_hot(preds, num_classes=100)
-
-    return torch.nn.functional.softmax(logits, dim=1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pseudo labeling \
@@ -175,25 +121,22 @@ if __name__ == "__main__":
                         help="Number of workers to launch during training")                        
     parser.add_argument('--alpha', type=float, default=1.0, metavar='ALPHA',
                         help='regularization coefficient (default: 0.01)')
-    parser.add_argument("--dataout", type=str, default="./path/to/output/",
-                        help="Path to save log files")
+    # parser.add_argument("--dataout", type=str, default="./path/to/output/",
+    #                     help="Path to save log files")
     parser.add_argument("--model-depth", type=int, default=16,
                         help="model depth for wide resnet") 
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
-    parser.add_argument("--vat-xi", default=1e-6, type=float, 
-                        help="VAT xi parameter")
-    parser.add_argument("--vat-eps", default=8.0, type=float, 
-                        help="VAT epsilon parameter") 
-    parser.add_argument("--vat-iter", default=1, type=int, 
-                        help="VAT iteration parameter")
+    # parser.add_argument("--vat-xi", default=1e-6, type=float, 
+    #                     help="VAT xi parameter")
+    # parser.add_argument("--vat-eps", default=8.0, type=float, 
+    #                     help="VAT epsilon parameter") 
+    # parser.add_argument("--vat-iter", default=1, type=int, 
+    #                     help="VAT iteration parameter")
 
-    # added arguments
-    parser.add_argument('--milestones', action='append', type=int, default=[], 
-                        help="Milestones for the LR scheduler")# see if useful, else rm
-    parser.add_argument("--modelpath", default="../trained_models/task2_cifar10_1e6_8_160k_800_16_8__0.3/task2_cifar10_1e6_8_160k_800_16_8__0.3.pth", 
+    parser.add_argument("--modelpath", default="../trained_models/task2/c10/task2_c10_4k/task2_c10_4k.pth", 
                         type=str, help="Path to save model")
-    parser.add_argument("--dropout", default=0.3, type=float, 
+    parser.add_argument("--dropout", default=0.0, type=float, 
                         help="Dropout rate for model") 
     # Add more arguments if you need them
     # Describe them in help

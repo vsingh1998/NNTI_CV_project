@@ -3,7 +3,6 @@
 import argparse
 import math
 import copy
-import logging
 import warnings
 warnings.filterwarnings("ignore")
 from collections import OrderedDict
@@ -17,6 +16,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
+
+import logging
 
 # create and configure logger
 logger = logging.getLogger()
@@ -53,44 +54,189 @@ def main(args):
                                     shuffle = False, 
                                     num_workers=args.num_workers)
     
-    args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-
     model       = WideResNet(depth= args.model_depth, num_classes= args.num_classes, 
                                 widen_factor= args.model_width)
     model       = model.to(device)
 
-    # load trained model from Task 1
-    model.load_state_dict(torch.load(args.modelpath, map_location=device))
-
-    # triplet_loss = nn.TripletMarginLoss().to(device) # for siamese network
-        
-    # fine-tune the model to learn embeddings in feature space
-    
-    # snn_base = copy.deepcopy(model)
-    model.fc = nn.Linear(model.fc.in_features, 256)
-    fc_relu = nn.ReLU(inplace=True)
-    fc2 = nn.Linear(model.fc.out_features, 128)
-    fc_last = nn.Linear(128, 64)
-
-    siamese_nn = nn.Sequential(model, fc_relu, fc2, fc_relu, fc_last)
-    siamese_nn = siamese_nn.to(device)
-    siamese_nn.train()
-
     # define loss, optimizer and lr scheduler
-    triplet_loss = TripletLoss(device=device)
-    optimizer = optim.SGD(siamese_nn.parameters(), args.lr,
+    criterion = nn.CrossEntropyLoss().to(device)
+    # triplet_loss = nn.TripletMarginLoss().to(device) # for siamese network
+    triplet_loss = TripletLoss(device)
+    optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
-    # for param in list(siamese_nn.children())[:-3]:
-    #     param.requires_grad = False
+    # Pseudo dataset initialization
+    pseudo_dataset_x = torch.tensor([]).to(device)
+    pseudo_dataset_y = torch.tensor([]).long().to(device)
+
+    args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
+    # epochs of supervised training
+    supervised_epochs = 100
+    # epochs of supervised + pseudo labels learning, first outermost loop
+    combined_epochs = supervised_epochs + 100
+
+    loss_log = []
+    train_acc_log = []
+
+    for epoch in range(combined_epochs):
+        running_loss = 0.0
+        running_train_acc = 0.0
+
+        model.train()
+
+        for i in range(args.iter_per_epoch):
+            try:
+                x_l, y_l    = next(labeled_loader)
+            except StopIteration:
+                labeled_loader      = iter(DataLoader(labeled_dataset, 
+                                            batch_size = args.train_batch, 
+                                            shuffle = True, 
+                                            num_workers=args.num_workers))
+                x_l, y_l    = next(labeled_loader)
+            
+            try:
+                x_ul, _     = next(unlabeled_loader)
+            except StopIteration:
+                unlabeled_loader    = iter(DataLoader(unlabeled_dataset, 
+                                            batch_size=args.train_batch,
+                                            shuffle = True, 
+                                            num_workers=args.num_workers))
+                x_ul, _     = next(unlabeled_loader)
+            
+            x_l, y_l    = x_l.to(device), y_l.to(device)
+            x_ul        = x_ul.to(device)
+
+            pseudo_elements = torch.numel(pseudo_dataset_x)
+            model.train()
+            
+            if args.num_labeled == 250 or args.num_labeled == 2500:
+                pred = model(x_l)
+
+                total_loss = criterion(pred, y_l)
+                acc = accuracy(pred.data, y_l, topk=(1,))[0]
+
+                running_loss += total_loss.item()
+                running_train_acc += acc
+
+                # compute gradient and do SGD step
+                optimizer.zero_grad()
+                total_loss.backward()
+                optimizer.step()
+            
+
+                if pseudo_elements != 0:
+                    pred_unlabeled = model(pseudo_dataset_x)
+
+                    total_loss = criterion(pred_unlabeled, pseudo_dataset_y)
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+                
+                scheduler.step()
+
+            else:
+                # train on labeled data for specified epochs (T1 in paper)
+                if epoch < supervised_epochs:
+                    pred = model(x_l)
+                    acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+                    total_loss = criterion(pred, y_l)
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+                    scheduler.step()
+
+                else:
+
+                    # labeled + pseudo combined training data
+                    X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
+                    Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
+
+                    # train model on combined data
+                    model.train()
+                    pred = model(X_train)
+
+                    if pseudo_elements == 0:
+                        total_loss = criterion(pred, Y_train)
+                    else:
+                        main_loss   = criterion(pred[:-pseudo_dataset_x.shape[0]], Y_train[:-pseudo_dataset_x.shape[0]])
+                        pseudo_loss = criterion(pred[-pseudo_dataset_x.shape[0]:], Y_train[-pseudo_dataset_x.shape[0]:])
+                        total_loss  = main_loss + alpha_weight(epoch, T1= supervised_epochs) * pseudo_loss
+
+                    acc = accuracy(pred.data, Y_train, topk=(1,))[0]
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+                    scheduler.step()
+
+            # make prediction on unlabeled data
+            model.eval()
+            pred_ul = model(x_ul)
+            # get class probabilities
+            pred_prob = F.softmax(pred_ul, dim=1)
+            
+            # reinitialize empty pseudo dataset for current iteration
+            pseudo_dataset_x = torch.tensor([]).to(device)
+            pseudo_dataset_y = torch.tensor([]).long().to(device)
+
+            # pseudo labeling
+            for idx_ul, pred in enumerate(pred_prob):
+                max_prob, max_prob_class = torch.max(pred, dim=-1)
+                if max_prob > args.threshold:
+                    pseudo_dataset_x = torch.cat((pseudo_dataset_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
+                    pseudo_dataset_y = torch.cat((pseudo_dataset_y, max_prob_class.unsqueeze(0)), dim=0)
+        
+        acc_per_epoch = running_train_acc / args.iter_per_epoch
+        train_acc_log.append(acc_per_epoch)
+        loss_per_epoch = running_loss / args.iter_per_epoch
+        loss_log.append(loss_per_epoch)
+        print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+        logger.info(f'==>>> epoch: {epoch}, train loss: {loss_per_epoch}, train accuracy: {acc_per_epoch}')
+        running_loss, running_train_acc = 0.0, 0.0 
+
+
+    # fine-tune the model to learn embeddings in feature space
+    # reinitialize empty pseudo dataset for current iteration
+    pseudo_dataset_x = torch.tensor([]).to(device)
+    pseudo_dataset_y = torch.tensor([]).long().to(device)
+    
+    snn_base = copy.deepcopy(model)
+    snn_base.fc = nn.Linear(model.fc.in_features, 256)
+    fc_relu = nn.ReLU(inplace=True)
+    fc2 = nn.Linear(snn_base.fc.out_features, 128)
+    fc_last = nn.Linear(128, 64)
+    siamese_nn = nn.Sequential(snn_base, fc_relu, fc2, fc_relu, fc_last)
+
+    optimizer = optim.SGD(siamese_nn.parameters(), args.lr,
+                                momentum=args.momentum, weight_decay=args.wd)
+
+    for param in list(siamese_nn.children())[:-3]:
+        param.requires_grad = False
+
+    siamese_nn = siamese_nn.to(device)
+    siamese_nn.train()
 
     add_classifier = True 
     similarity_loss_log = []
  
+    # run for 300 epochs starting from 200th
     # generate labels with 90% confidence and learn embeddings for first 70 epochs
-    # in last 50 epochs, learns weights for last layer of classifier for final label prediction
-    for epoch in range(args.epoch):
+    # in last 30 epochs, learns weights for last layer of classifier for final label prediction
+    for epoch in range(combined_epochs, args.epoch):
         running_similarity_loss = 0.0
 
         for i in range(args.iter_per_epoch):
@@ -137,23 +283,24 @@ def main(args):
             X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
             Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
 
-            if epoch < (args.epoch - 2): # - 50
+            if epoch < (args.epoch - 30):
                 anchors, positives, negatives, anchors_y, positives_y, negatives_y = create_triplet(X_train, Y_train)
                 embed_A = siamese_nn(anchors.to(device))
                 embed_P = siamese_nn(positives.to(device))
                 embed_N = siamese_nn(negatives.to(device))
 
-                print('size embed_A', embed_A.size())
+                # print(embed_A)
+                # print('size embed_A', embed_A.size())
 
                 embeddings = torch.cat((F.normalize(embed_A, p=2, dim=1), 
                                         F.normalize(embed_P, p=2, dim=1), 
                                         F.normalize(embed_N, p=2, dim=1)), dim=0)
                 labels = torch.cat((anchors_y, positives_y, negatives_y), dim=0)
 
-                print('embeddings.size(), labels.size()', embeddings.size(), labels.size())
+                # print(embeddings.size(), labels.size())
 
                 # similarity_loss = triplet_loss(embed_A, embed_P, embed_N)
-                similarity_loss = triplet_loss(embeddings.to(device), labels.to(device), device=device)
+                similarity_loss = triplet_loss(embeddings, labels)
                 running_similarity_loss += similarity_loss.item()
 
                 print('similarity loss', similarity_loss.item())
@@ -163,8 +310,6 @@ def main(args):
             elif add_classifier:
                 last_layer = nn.Linear(64, args.num_classes)
                 snn_classifier = nn.Sequential(siamese_nn, fc_relu, last_layer)
-
-                criterion = nn.CrossEntropyLoss().to(device)
                 optimizer = optim.SGD(snn_classifier.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
 
@@ -188,7 +333,7 @@ def main(args):
         logger.info(f'==>>> similarity loss: {similarity_loss}')
         scheduler.step()
 
-    torch.save(snn_classifier, 'task3.pth')
+    torch.save(snn_classifier.state_dict(), 'task3.pth')
 
     ## Testing
     running_acc = 0.0
@@ -212,7 +357,8 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Task 3")
+    parser = argparse.ArgumentParser(description="Pseudo labeling \
+                                        of CIFAR10/100 with pytorch")
     parser.add_argument("--dataset", default="cifar10", 
                         type=str, choices=["cifar10", "cifar100"])
     parser.add_argument("--datapath", default="./data/", 
@@ -227,13 +373,13 @@ if __name__ == "__main__":
                         help="Weight decay")
     parser.add_argument("--expand-labels", action="store_true", 
                         help="expand labels to fit eval steps")
-    parser.add_argument('--train-batch', default=8, type=int,
+    parser.add_argument('--train-batch', default=64, type=int,
                         help='train batchsize')
-    parser.add_argument('--test-batch', default=32, type=int,
+    parser.add_argument('--test-batch', default=64, type=int,
                         help='test batchsize')
-    parser.add_argument('--total-iter', default=4*2, type=int,
+    parser.add_argument('--total-iter', default=800*300, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=2, type=int,
+    parser.add_argument('--iter-per-epoch', default=800, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
@@ -245,7 +391,7 @@ if __name__ == "__main__":
                         help="model width for wide resnet")
     parser.add_argument('--milestones', action='append', type=int, default=[40, 80], 
                         help="Milestones for the LR scheduler") # see if useful, else rm
-    parser.add_argument("--modelpath", default="../trained_models/task1/c10/task1_c10_4k_t75/task1_c10_4k_t75.pth", 
+    parser.add_argument("--modelpath", default="./model/task3.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.0, type=float, 
                         help="Dropout rate for model")   
