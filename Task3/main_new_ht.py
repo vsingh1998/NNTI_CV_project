@@ -2,7 +2,6 @@
 
 import argparse
 import math
-import copy
 import logging
 import warnings
 warnings.filterwarnings("ignore")
@@ -10,7 +9,7 @@ from collections import OrderedDict
 
 from dataloader import get_cifar10, get_cifar100
 from model.wrn import WideResNet
-from utils import accuracy, alpha_weight, create_triplet, TripletLoss
+from utils import accuracy, create_triplet
 
 import torch
 import torch.nn as nn
@@ -62,8 +61,7 @@ def main(args):
     # load trained model from Task 1
     model.load_state_dict(torch.load(args.modelpath, map_location=device))
         
-    # fine-tune the model to learn embeddings in feature space
-    # snn_base = copy.deepcopy(model)
+    # add linear layers on top to learn embeddings in 64D feature space
     model.fc = nn.Linear(model.fc.in_features, 256)
     fc_relu = nn.ReLU(inplace=True)
     fc2 = nn.Linear(model.fc.out_features, 128)
@@ -74,22 +72,15 @@ def main(args):
     siamese_nn.train()
 
     # define loss, optimizer and lr scheduler
-    # triplet_loss = TripletLoss(device=device)
-    triplet_loss = nn.TripletMarginLoss().to(device) # for siamese network
+    triplet_loss = nn.TripletMarginLoss().to(device)
     optimizer = optim.SGD(siamese_nn.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
-    # for param in list(siamese_nn.children())[:-3]:
-    #     param.requires_grad = False
-
     add_classifier = True 
     similarity_loss_log = []
- 
-    # generate labels with 90% confidence and learn embeddings for first 70 epochs
-    # in last 50 epochs, learns weights for last layer of classifier for final label prediction
+
     for epoch in range(args.epoch):
-        print('epoch', epoch)
         running_similarity_loss = 0.0
 
         for i in range(args.iter_per_epoch):
@@ -136,29 +127,17 @@ def main(args):
             X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
             Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
 
-            if epoch < (args.epoch - 50): # - 50
-                anchors, positives, negatives = create_triplet(X_train, Y_train) # , anchors_y, positives_y, negatives_y
+            if epoch < (args.epoch - 50):
+                anchors, positives, negatives = create_triplet(X_train, Y_train)
                 if anchors.size(0) == 0 or positives.size(0) == 0 or negatives.size(0) == 0:
                     continue
+
                 embed_A = siamese_nn(anchors.to(device))
                 embed_P = siamese_nn(positives.to(device))
                 embed_N = siamese_nn(negatives.to(device))
 
-                print('size embed_A', embed_A.size())
-
-                # embeddings = torch.cat((F.normalize(embed_A, p=2, dim=1), 
-                #                         F.normalize(embed_P, p=2, dim=1), 
-                #                         F.normalize(embed_N, p=2, dim=1)), dim=0)
-                # labels = torch.cat((anchors_y, positives_y, negatives_y), dim=0)
-
-                # print('embeddings.size(), labels.size()', embeddings.size(), labels.size())
-
                 similarity_loss = triplet_loss(F.normalize(embed_A, p=2, dim=1), F.normalize(embed_P, p=2, dim=1), F.normalize(embed_N, p=2, dim=1))
-                # similarity_loss = triplet_loss(embeddings.to(device), labels.to(device), device=device)
                 running_similarity_loss += similarity_loss.item()
-
-                print('similarity loss', similarity_loss.item())
-                logger.info(f'==>>> similarity loss: {similarity_loss.item()}')
                 similarity_loss.backward()
                 optimizer.step()
 
@@ -212,6 +191,7 @@ def main(args):
         logger.info(f'==>>> test accuracy: {test_accuracy}')
 
         running_acc = 0.0
+        print('here!')
 
 
 if __name__ == "__main__":
@@ -247,9 +227,9 @@ if __name__ == "__main__":
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     parser.add_argument('--milestones', action='append', type=int, default=[40, 80], 
-                        help="Milestones for the LR scheduler") # see if useful, else rm
+                        help="Milestones for the LR scheduler")
     parser.add_argument("--modelpath", default="../trained_models/task1/c10/task1_c10_4k_t75/task1_c10_4k_t75.pth", 
-                        type=str, help="Path to save model")
+                        type=str, help="Path to load model from")
     parser.add_argument("--dropout", default=0.0, type=float, 
                         help="Dropout rate for model")   
 
