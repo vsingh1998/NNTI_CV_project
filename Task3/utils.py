@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import math
 
 def accuracy(output, target, topk=(1,)):
     """
@@ -63,10 +64,10 @@ def create_triplet(X, Y):
     anchors, positives, negatives = torch.tensor([]), torch.tensor([]), torch.tensor([])
     anchors_y, positives_y, negatives_y = torch.tensor([], dtype=torch.long), torch.tensor([], dtype=torch.long), torch.tensor([], dtype=torch.long) 
 
-    for i in range(X.size(0)):
-        print(i)
-        anchor_x = X[i]
-        anchor_y = Y[i]
+    for i in range(math.floor(X.size(0)/2)):
+        random_idx = np.random.randint(0, X.size(0))
+        anchor_x = X[random_idx]
+        anchor_y = Y[random_idx]
 
         indices_for_pos = np.squeeze(np.where(Y == anchor_y))
         # print(indices_for_pos)

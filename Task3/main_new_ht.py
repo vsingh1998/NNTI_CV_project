@@ -137,7 +137,7 @@ def main(args):
             X_train = torch.cat((x_l, pseudo_dataset_x), dim=0)
             Y_train = torch.cat((y_l, pseudo_dataset_y), dim=0)
 
-            if epoch < (args.epoch - 2): # - 50
+            if epoch < (args.epoch - 50): # - 50
                 anchors, positives, negatives, anchors_y, positives_y, negatives_y = create_triplet(X_train, Y_train)
                 embed_A = siamese_nn(anchors.to(device))
                 embed_P = siamese_nn(positives.to(device))
@@ -231,9 +231,9 @@ if __name__ == "__main__":
                         help='train batchsize')
     parser.add_argument('--test-batch', default=32, type=int,
                         help='test batchsize')
-    parser.add_argument('--total-iter', default=4*2, type=int,
+    parser.add_argument('--total-iter', default=800*200, type=int,
                         help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=2, type=int,
+    parser.add_argument('--iter-per-epoch', default=800, type=int,
                         help="Number of iterations to run per epoch")
     parser.add_argument('--num-workers', default=8, type=int,
                         help="Number of workers to launch during training")
