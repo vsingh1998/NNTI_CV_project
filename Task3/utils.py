@@ -70,53 +70,38 @@ def create_triplet(X, Y):
         anchor_y = Y[random_idx]
 
         indices_for_pos = np.squeeze(np.where(Y == anchor_y))
-        # print(indices_for_pos)
         indices_for_neg = np.squeeze(np.where(Y != anchor_y))
-        # print(indices_for_neg)
 
-        if indices_for_pos.size == 0 or indices_for_pos.size == 1:
+        if indices_for_pos.size == 0 or indices_for_pos.size == 1 or indices_for_neg.size == 0 or indices_for_neg.size == 1:
             continue
 
         negative_x, negative_y = X[indices_for_neg], Y[indices_for_neg]
         anchor_x = anchor_x.unsqueeze(0)
-        # print('initial anchor_x shape', anchor_x.size())
         anchor_y = anchor_y.unsqueeze(0)
-        # print('negative_x.size()', negative_x.size())
 
-        # pos_indices = indices_for_pos[np.random.randint(0, indices_for_pos.size)]
-        # neg_indices = indices_for_neg[np.random.randint(0, indices_for_neg.size)]
-        # positive_x, positive_y = X[pos_indices], Y[pos_indices]
-        # negative_x, negative_y = X[neg_indices], Y[neg_indices]
         first_run = True
         for pos_idx in indices_for_pos:
-            positive_x, positive_y = X[pos_idx], Y[pos_idx]
+            positive_x = X[pos_idx] #, positive_y = , Y[pos_idx]
             positive_x = positive_x.unsqueeze(0)
-            positive_y = positive_y.unsqueeze(0)
+            # positive_y = positive_y.unsqueeze(0)
 
             if first_run:
                 anchor_x = anchor_x.repeat(negative_x.size(0), 1, 1, 1)
-                # print('anchor_x.shape', anchor_x.shape)
-                anchor_y = torch.cat(negative_x.size(0) * [anchor_y], dim=0)
+                # anchor_y = torch.cat(negative_x.size(0) * [anchor_y], dim=0)
                 first_run = False
 
             positive_x = torch.cat(negative_x.size(0) * [positive_x], dim=0)
-            # print('positive_x.shape', positive_x.shape)
-            positive_y = torch.cat(negative_x.size(0) * [positive_y], dim=0)
-            # print('positive_y.shape', positive_y.shape)
-            # anchor_x = torch.cat(negative_x.size(0) * [anchor_x], dim=0)
+            # positive_y = torch.cat(negative_x.size(0) * [positive_y], dim=0)
             
-            # print('anchor_x.size()', anchor_x.size())
             anchors = torch.cat((anchors, anchor_x), dim=0)
-            print('anchors.size()', anchors.size())
             positives = torch.cat((positives, positive_x), dim=0)
             negatives = torch.cat((negatives, negative_x), dim=0)
-            # print('negatives.size()', negatives.size())
 
-            anchors_y = torch.cat((anchors_y, anchor_y), dim=0)
-            positives_y = torch.cat((positives_y, positive_y), dim=0)
-            negatives_y = torch.cat((negatives_y, negative_y), dim=0)
-
-    return anchors, positives, negatives, anchors_y, positives_y, negatives_y
+            # anchors_y = torch.cat((anchors_y, anchor_y), dim=0)
+            # positives_y = torch.cat((positives_y, positive_y), dim=0)
+            # negatives_y = torch.cat((negatives_y, negative_y), dim=0)
+    # anchors_y, positives_y, negatives_y
+    return anchors, positives, negatives
 
 
 def pairwise_distance_torch(embeddings, device):
