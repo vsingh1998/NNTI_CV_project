@@ -47,12 +47,11 @@ def main(args):
 
     ############################################################################
     # TODO: SUPPLY your code
-    # define loss, optimizer and lr scheduler
+    # define loss and ooptimizer 
     criterion = nn.CrossEntropyLoss().to(device)
     vat_loss = VATLoss(args)
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
-    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
     loss_log = []
     train_acc_log = []
@@ -85,33 +84,47 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
             ####################################################################
-            # TODO: SUPPLY you code
-            v_loss = vat_loss.forward(model, x_ul)
+            # calculate VAT loss for unlabeled data
+            v_loss = vat_loss.forward(model.eval(), x_ul)
+
+            # generate predictions on labeled data
             pred = model(x_l)
+
+            # calculate cross entropy loss for labeled data
             classification_loss = criterion(pred, y_l)
 
-            # new loss
+            # generate predictions on unlabeled data
             ul_pred = model(x_ul)
+
+            # calculate conditional entropy loss for unlabeled data
             entropy_loss_ul = entropy_loss(ul_pred)
 
-            total_loss = classification_loss + args.alpha * v_loss + entropy_loss_ul # new
+            # calculate total loss
+            total_loss = classification_loss + args.alpha * v_loss + entropy_loss_ul 
             print("For {} in epoch {}: classification_loss= {} v_loss= {} total_loss= {}".format(i, epoch, classification_loss, v_loss, total_loss))
+
+            # calculate accuracy
             acc = accuracy(pred.data, y_l, topk=(1,))[0] 
             
             running_loss += total_loss.item()
             running_train_acc += acc
 
+            # backpropagate
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
 
+        # calculate accuracy per epoch
         acc_per_epoch = running_train_acc / args.iter_per_epoch
         train_acc_log.append(acc_per_epoch)
+
+        # calculate loss per epoch
         loss_per_epoch = running_loss / args.iter_per_epoch
         loss_log.append(loss_per_epoch)
+
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch.item())
         running_loss, running_train_acc = 0.0, 0.0
-    # """
+ 
     # plot loss per epoch
     plt.plot(loss_log)
     plt.title('Loss per epoch')
@@ -122,7 +135,7 @@ def main(args):
 
     torch.save(model, args.modelpath)
 
-    ### Test
+    # Test
     running_acc = 0.0
     acc_log = []
     

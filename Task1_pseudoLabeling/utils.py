@@ -23,9 +23,9 @@ def accuracy(output, target, topk=(1,)):
 
 def alpha_weight(step, T1 = 30, T2 = 100, af = 3):
     """
-    TODO
+    Compute the weightage for the unlabeled loss at a
+    certain epoch
     """
-
     if step < T1:
         return 0.0
     elif step > T2:

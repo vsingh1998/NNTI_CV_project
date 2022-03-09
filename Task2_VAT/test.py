@@ -1,85 +1,97 @@
-import argparse
-import math
-from sys import prefix
-from tokenize import PseudoExtras
-
-from dataloader import get_cifar10, get_cifar100
-from utils      import accuracy, L2_norm
-
-from model.wrn  import WideResNet
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+from dataloader import get_cifar10, get_cifar100
+from model.wrn import WideResNet
+from utils import accuracy
 from torch.utils.data   import DataLoader
 
-import matplotlib.pyplot as plt
+def test_cifar10(testdataset, filepath = "./path/to/model.pth.tar"):
+    '''
+    args: 
+        testdataset : (torch.utils.data.Dataset)
+        filepath    : (str) The path to the model file that is saved
+    returns : (torch.Tensor) logits of the testdataset with shape 
+                [num_samples, 10]. Apply softmax to the logits
+    
+    Description:
+        This function loads the model given in the filepath and returns the 
+        logits of the testdataset which is a torch.utils.data.Dataset. You can
+        save the arguments needed to load the models (e.g. width, depth etc) 
+        with the model file. Assume testdataset is like CIFAR-10. Test this
+        function with the testdataset returned by get_cifar10()
+    '''
+    # define dataloader for test dataset
+    test_loader  = DataLoader(testdataset, batch_size = 64,
+                                shuffle = False, num_workers=8)
 
-def main(args):
-    if args.dataset == "cifar10":
-        args.num_classes = 10
-        _, _, test_dataset = get_cifar10(args, args.datapath)
-
-    if args.dataset == "cifar100":
-        args.num_classes = 100
-        _, _, test_dataset = get_cifar100(args, args.datapath)
-
-    # args.epoch = math.ceil(args.total_iter / args.iter_per_epoch)
-
+    # check device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    test_loader  = DataLoader(test_dataset, batch_size = args.test_batch,
-                                shuffle = True, num_workers=args.num_workers)
+    # define model (we forgot to save parameters)
+    model = WideResNet(depth=16, num_classes=10, widen_factor=8)
 
-    model = WideResNet(depth=16, num_classes=args.num_classes, 
-                        widen_factor=8, dropRate= 0.0)
-    model = model.to(device)
-    
-    # Test
-    model.load_state_dict(torch.load(args.modelpath, map_location=device))
+    # load saved model
+    model.load_state_dict(torch.load(filepath, map_location=device))
+
+    # model in evaluation mode
     model.eval()
 
-    running_acc = 0.0
+    predictions = torch.tensor([])
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
+            # load batch
             inputs, labels = inputs.to(device), labels.to(device)
 
+            # generate predictions from the model
             pred = model(inputs)
-            acc = accuracy(pred.data, labels, topk=(1,))[0]
-            running_acc += acc
 
-        test_accuracy = running_acc.item() / batch_idx
-        print('Accuracy: ', test_accuracy)
-        running_acc = 0.0
+            # concatenate predictions
+            predictions = torch.cat((predictions, pred), dim=0)
 
+    return torch.nn.functional.softmax(predictions, dim=1)
 
-            ####################################################################
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Task 2 inference")
-    parser.add_argument("--dataset", default="cifar10", 
-                        type=str, choices=["cifar10", "cifar100"])
-    parser.add_argument("--datapath", default="./data/", 
-                        type=str, help="Path to the CIFAR-10/100 dataset")
-    parser.add_argument('--num-labeled', type=int, 
-                        default=4000, help='Total number of labeled samples')
-    parser.add_argument("--expand-labels", action="store_true", 
-                        help="expand labels to fit eval steps")
-    parser.add_argument('--train-batch', default=64, type=int,
-                        help='train batchsize')
-    parser.add_argument('--test-batch', default=64, type=int,
-                        help='train batchsize')
-    parser.add_argument('--total-iter', default=1024*512, type=int,
-                        help='total number of iterations to run')
-    parser.add_argument('--iter-per-epoch', default=1024, type=int,
-                        help="Number of iterations to run per epoch")
-    parser.add_argument('--num-workers', default=8, type=int,
-                        help="Number of workers to launch during training")                        
-    parser.add_argument("--modelpath", default="../trained_models/task2/c10/task2_c10_4k/task2_c10_4k.pth", 
-                        type=str, help="Path to save model")
+def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
+    '''
+    args: 
+        testdataset : (torch.utils.data.Dataset)
+        filepath    : (str) The path to the model file that is saved
+    returns : (torch.Tensor) logits of the testdataset with shape 
+                [num_samples, 100]. Apply softmax to the logits
     
-    args = parser.parse_args()
+    Description:
+        This function loads the model given in the filepath and returns the 
+        logits of the testdataset which is a torch.utils.data.Dataset. You can
+        save the arguments needed to load the models (e.g. width, depth etc) 
+        with the model file. Assume testdataset is like CIFAR-100. Test this
+        function with the testdataset returned by get_cifar100()
+    '''
 
-    main(args)
+    # define dataloader for test dataset
+    test_loader  = DataLoader(testdataset, batch_size = 64,
+                                shuffle = False, num_workers=8)
+
+    # check device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # define model (we forgot to save parameters)
+    model = WideResNet(depth=16, num_classes=100, widen_factor=8)
+
+    # load saved model
+    model.load_state_dict(torch.load(filepath, map_location=device))
+
+    # model in evaluation mode
+    model.eval()
+
+    predictions = torch.tensor([])
+    with torch.no_grad():
+        for batch_idx, (inputs, labels) in enumerate(test_loader):
+            # load batch
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            # generate predictions from the model
+            pred = model(inputs)
+
+            # concatenate predictions
+            predictions = torch.cat((predictions, pred), dim=0)
+
+    return torch.nn.functional.softmax(predictions, dim=1)
+    

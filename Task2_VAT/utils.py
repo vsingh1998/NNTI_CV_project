@@ -35,7 +35,9 @@ def L2_norm(x):
     
     return x
 
-
 def entropy_loss(p_ul):
-    p = F.softmax(p_ul, dim=1)
-    return -(p*F.log_softmax(p_ul, dim=1)).sum(dim=1).mean(dim=0)
+    """
+    Calculate conditional entropy loss
+    """
+    p_soft = F.softmax(p_ul, dim=1)
+    return -(p_soft*F.log_softmax(p_ul, dim=1)).sum(dim=1).mean(dim=0)

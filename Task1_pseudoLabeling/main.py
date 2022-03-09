@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.utils.data   import DataLoader
 
 import matplotlib.pyplot as plt
-# import numpy as np
+import numpy as np
 
 
 def main(args):
@@ -51,13 +51,13 @@ def main(args):
 
     ############################################################################
 
-    # define loss, optimizer and lr scheduler
+    # define loss, optimizer and learning rate scheduler
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum, weight_decay=args.wd)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
     
-    # Pseudo dataset initialization
+    # pseudo dataset initialization
     pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
     pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
 
@@ -66,7 +66,7 @@ def main(args):
     train_acc_log = []
 
     ############################################################################
-    
+
     for epoch in range(args.epoch):
         running_loss = 0.0
         running_train_acc = 0.0
@@ -95,15 +95,24 @@ def main(args):
             x_l, y_l    = x_l.to(device), y_l.to(device)
             x_ul        = x_ul.to(device)
 
-            print(y_l)
             ####################################################################
+            # counting number of elements in pseudo dataset
+            pseudo_elements = torch.numel(pseudo_dataseṭ̣_x)
+
+            model.train()
             
-            # train on labeled data for specified epochs (T1 in paper)
-            if epoch < supervised_epochs:
+            # training for CIFAR10 (250 labeled) and CIFAR100 (2500 labeled)
+            if args.num_labeled == 250 or args.num_labeled == 2500:
+
+                # prediction on labeled data
                 pred = model(x_l)
-                acc = accuracy(pred.data, y_l, topk=(1,))[0] 
+
+                # loss for labeled data
                 total_loss = criterion(pred, y_l)
 
+                # accuracy for labeled data
+                acc = accuracy(pred.data, y_l, topk=(1,))[0]
+
                 running_loss += total_loss.item()
                 running_train_acc += acc
 
@@ -111,61 +120,105 @@ def main(args):
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
-                scheduler.step()
+
+                # train on pseudo labeled data
+                if pseudo_elements != 0:
+                    
+                    # prediction on pseudo labeled data
+                    pred_unlabeled = model(pseudo_dataseṭ̣_x)
+                    
+                    # loss for pseudo labeled data
+                    total_loss = criterion(pred_unlabeled, pseudo_dataseṭ̣_y)
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+                    
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
 
             else:
-                pseudo_elements = torch.numel(pseudo_dataseṭ̣_x)
+                # training for CIFAR10 (4000 labeled) and CIFAR100 (10000 labeled)
+                # train on labeled data for specified epochs (T1 in paper)
+                if epoch < supervised_epochs:
 
-                # labeled + pseudo combined training data
-                X_train = torch.cat((x_l, pseudo_dataseṭ̣_x), dim=0)
-                Y_train = torch.cat((y_l, pseudo_dataseṭ̣_y), dim=0)
+                    # prediction on labeled data
+                    pred = model(x_l)
 
-                # train model on combined data
-                model.train()
-                pred = model(X_train)
+                    # loss for labeled data
+                    total_loss = criterion(pred, y_l)
 
-                if pseudo_elements == 0:
-                    total_loss = criterion(pred, Y_train)
+                    # accuracy for labeled data
+                    acc = accuracy(pred.data, y_l, topk=(1,))[0]
+
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
+
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+
                 else:
-                    main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
-                    pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
-                    total_loss  = main_loss + alpha_weight(epoch, T1 = supervised_epochs) * pseudo_loss
+                    # labeled + pseudo combined training data
+                    X_train = torch.cat((x_l, pseudo_dataseṭ̣_x), dim=0)
+                    Y_train = torch.cat((y_l, pseudo_dataseṭ̣_y), dim=0)
 
-                total_loss = criterion(pred, Y_train)
-                acc = accuracy(pred.data, Y_train, topk=(1,))[0]
+                    # train model on combined data
+                    model.train()
+                    pred = model(X_train)
 
-                running_loss += total_loss.item()
-                running_train_acc += acc
+                    if pseudo_elements == 0:
+                        # loss for labeled data
+                        total_loss = criterion(pred, Y_train)
+                    else:
+                        # loss for labeled data
+                        main_loss   = criterion(pred[:-pseudo_dataseṭ̣_x.shape[0]], Y_train[:-pseudo_dataseṭ̣_x.shape[0]])
+                        # loss for pseudo labeled data
+                        pseudo_loss = criterion(pred[-pseudo_dataseṭ̣_x.shape[0]:], Y_train[-pseudo_dataseṭ̣_x.shape[0]:])
+                        # total loss
+                        total_loss  = main_loss + alpha_weight(epoch, T1= supervised_epochs) * pseudo_loss
 
-                # compute gradient and do SGD step
-                optimizer.zero_grad()
-                total_loss.backward()
-                optimizer.step()
-                scheduler.step()
+                    acc = accuracy(pred.data, Y_train, topk=(1,))[0]
 
-                # make prediction on unlabeled data
-                model.eval()
-                pred_ul = model(x_ul)
-                # get class probabilities
-                pred_prob = F.softmax(pred_ul, dim=1)
-                
-                # reinitialize empty pseudo dataset for current iteration
-                pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
-                pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
+                    running_loss += total_loss.item()
+                    running_train_acc += acc
 
-                # pseudo labeling
-                for idx_ul, pred in enumerate(pred_prob):
-                    max_prob, max_prob_class = torch.max(pred, dim=-1)
-                    if max_prob > args.threshold:
-                        pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
-                        pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    total_loss.backward()
+                    optimizer.step()
+
+            # make prediction on unlabeled data
+            model.eval()
+            pred_ul = model(x_ul)
+            # get class probabilities
+            pred_prob = F.softmax(pred_ul, dim=1)
+            
+            # reinitialize empty pseudo dataset for current iteration
+            pseudo_dataseṭ̣_x = torch.tensor([]).to(device)
+            pseudo_dataseṭ̣_y = torch.tensor([]).long().to(device)
+
+            # pseudo labeling
+            for idx_ul, pred in enumerate(pred_prob):
+                max_prob, max_prob_class = torch.max(pred, dim=-1)
+                if max_prob > args.threshold:
+                    pseudo_dataseṭ̣_x = torch.cat((pseudo_dataseṭ̣_x, x_ul[idx_ul].unsqueeze(0)), dim=0)
+                    pseudo_dataseṭ̣_y = torch.cat((pseudo_dataseṭ̣_y, max_prob_class.unsqueeze(0)), dim=0)
         
+        # calculate accuracy per epoch
         acc_per_epoch = running_train_acc / args.iter_per_epoch
         train_acc_log.append(acc_per_epoch)
+
+        # calculate loss per epoch
         loss_per_epoch = running_loss / args.iter_per_epoch
         loss_log.append(loss_per_epoch)
+
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch)
+
         running_loss, running_train_acc = 0.0, 0.0
+        scheduler.step()
 
     # plot loss per epoch
     plt.plot(loss_log)
@@ -175,18 +228,22 @@ def main(args):
     plt.grid()
     plt.savefig('loss.png')
 
+    # save model
     torch.save(model, args.modelpath)
 
-
-    ### Test
+    ## Test
     model.eval()
     running_acc = 0.0
     acc_log = []
+
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
             inputs, labels = inputs.to(device), labels.to(device)
-
+            
+            # prediction on test data
             pred = model(inputs)
+
+            # accuracy on test data
             acc = accuracy(pred.data, labels, topk=(1,))[0]
             running_acc += acc
 
@@ -249,10 +306,6 @@ if __name__ == "__main__":
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.3, type=float, 
                         help="Dropout rate for model")                    
-    
-    # Add more arguments if you need them
-    # Describe them in help
-    # You can (and should) change the default values of the arguments
     
     args = parser.parse_args()
 
