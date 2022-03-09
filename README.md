@@ -1,12 +1,12 @@
 # NNTI computer vision project
-Name:  
-MatrikelNummer:  
-Email:  
+Name: Vikram Singh  
+MatrikelNummer: 7023552  
+Email: visi00003@stud.uni-saarland.de  
+    
+Name: Zeba Karin Ahmad  
+MatrikelNummer: 7023017  
+Email: zeah00001@stud.uni-saarland.de  
   
-Name:  
-MatrikelNummer:  
-Email:  
-
 Submit the project report with this repository.
 Please go through the project instructions given in the pdf file
 project-instructions.pdf along with this repository. If you submit a 

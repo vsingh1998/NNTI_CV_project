@@ -9,12 +9,14 @@ Task1_pseudoLabeling/__pycache__
 Task1_pseudoLabeling/model/__pycache__
 Task1_pseudoLabeling/model/.DS_Store
 Task1_pseudoLabeling/temp/*
+Task1_pseudoLabeling/trained_models/*
 
 Task2_VAT/data/*
 Task2_VAT/__pycache__
 Task2_VAT/model/__pycache__
 Task2_VAT/model/.DS_Store
 Task2_VAT/temp/*
+Task2_VAT/trained_models/*
 
 Task3/data/*
 Task3/__pycache__
