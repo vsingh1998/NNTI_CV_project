@@ -1,7 +1,7 @@
 # exclude everything
 .DS_Store
 papers/*
-trained_models/*
+trained_all_models/*
 FixMatch/*
 
 Task1_pseudoLabeling/data/*
