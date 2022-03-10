@@ -44,7 +44,7 @@
   python3 main.py --dataset cifar10 --num-labeled 250 --total-iter 100*128 --iter-per-epoch 128 --model-depth 16 --model-width 8 --vat-xi 1e-6 --vat-eps 6.0 --lr 0.001
   ```
 
-  - CIFAR-100 (10000 labeled)
+- CIFAR-100 (10000 labeled)
 
   ```
   python3 main.py --dataset cifar100 --num-labeled 10000 --total-iter 150*800 --iter-per-epoch 800 --model-depth 16 --model-width 8 --vat-xi 1e-6 --vat-eps 6.0 --lr 0.001

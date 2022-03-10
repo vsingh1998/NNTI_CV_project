@@ -59,7 +59,7 @@
   ```
 - CIFAR-100 (2500 labeled)
    ```
-  python3 main.py --dataset cifar100 --num-labeled 250 --total-iter 256*150 --iter-per-epoch 256 --threshold 0.60/0.75/0.95 --model-depth 16 --model-width 8 --dropout 0.0
+  python3 main.py --dataset cifar100 --num-labeled 2500 --total-iter 256*150 --iter-per-epoch 256 --threshold 0.60/0.75/0.95 --model-depth 16 --model-width 8 --dropout 0.0
   ```
 
   ## Steps for testing
