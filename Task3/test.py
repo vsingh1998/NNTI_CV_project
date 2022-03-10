@@ -26,11 +26,8 @@ def test_cifar10(testdataset, filepath = "./path/to/model.pth.tar"):
     # check device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # define model (we forgot to save parameters)
-    model = WideResNet(depth=16, num_classes=10, widen_factor=8)
-
     # load saved model
-    model.load_state_dict(torch.load(filepath, map_location=device))
+    model = torch.load(filepath, map_location=device)
 
     # model in evaluation mode
     model.eval()
@@ -72,11 +69,8 @@ def test_cifar100(testdataset, filepath="./path/to/model.pth.tar"):
     # check device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # define model (we forgot to save parameters)
-    model = WideResNet(depth=16, num_classes=100, widen_factor=8)
-
     # load saved model
-    model.load_state_dict(torch.load(filepath, map_location=device))
+    model = torch.load(filepath, map_location=device)
 
     # model in evaluation mode
     model.eval()
