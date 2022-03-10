@@ -13,8 +13,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data   import DataLoader
-
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -220,21 +218,12 @@ def main(args):
         running_loss, running_train_acc = 0.0, 0.0
         scheduler.step()
 
-    # plot loss per epoch
-    plt.plot(loss_log)
-    plt.title('Loss per epoch')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid()
-    plt.savefig('loss.png')
-
     # save model
     torch.save(model, args.modelpath)
 
     ## Test
     model.eval()
     running_acc = 0.0
-    acc_log = []
 
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
@@ -249,16 +238,6 @@ def main(args):
 
         test_accuracy = running_acc.item() / batch_idx
         print('Accuracy: ', test_accuracy)
-        acc_log.append(test_accuracy)
-        running_acc = 0.0
-
-    # plot accuracy curve
-    plt.plot(acc_log)
-    plt.title('Accuracy')
-    plt.xlabel('Batch')
-    plt.ylabel('Accuracy')
-    plt.grid()
-    plt.savefig('accuracy.png')
 
             ####################################################################
 
