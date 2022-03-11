@@ -8,7 +8,7 @@ Task1_pseudoLabeling/data/*
 Task1_pseudoLabeling/__pycache__
 Task1_pseudoLabeling/model/__pycache__
 Task1_pseudoLabeling/model/.DS_Store
-Task1_pseudoLabeling/temp/*
+Task1_pseudoLabeling/tempp/*
 Task1_pseudoLabeling/trained_models/*
 
 Task2_VAT/data/*
