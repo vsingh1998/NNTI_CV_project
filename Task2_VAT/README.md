@@ -56,8 +56,8 @@
 
   ## Steps for testing
 
-- Create a test dataset of type *torch.utils.data.Dataset*
-- Call one of the functions from *test.py* including *test_cifar10* or *test_cifar100* and pass the arguments *testdataset* and *filepath*. For example:
+- Create a test dataset of type ```torch.utils.data.Dataset```
+- Call one of the functions from ```test.py``` including ```test_cifar10``` or ```test_cifar100``` and pass the arguments ```testdataset``` and ```filepath```. For example:
   ```
     test_cifar10(testdataset, filepath='./trained_models/CIFAR-10/250/task1_c10_250_t60.pth')
   ```
