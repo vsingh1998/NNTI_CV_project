@@ -52,7 +52,7 @@
   python3 main.py --dataset cifar10 --num-labeled 250 --total-iter 128*150 --iter-per-epoch 128 --threshold 0.60/0.75/0.95 --model-depth 16 --model-width 8 --dropout 0.0
   ```
 
-  - CIFAR-100 (10000 labeled)
+- CIFAR-100 (10000 labeled)
 
   ```
   python3 main.py --dataset cifar100 --num-labeled 10000 --total-iter 250*800 --iter-per-epoch 800 --threshold 0.60/0.75/0.95 --model-depth 16 --model-width 8 --dropout 0.3

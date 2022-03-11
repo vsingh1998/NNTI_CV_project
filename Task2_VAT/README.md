@@ -23,7 +23,7 @@
   Directory: ./trained_models/CIFAR-100/10000/{model_name}
   ```
   - *task2_c100_10k.pth*: model for CIFAR-100 with 10000 labeled samples 
-  - 
+  
 - **For 2500 labeled samples**
   ```
   Directory: ./trained_models/CIFAR-100/2500/{model_name}
@@ -59,6 +59,6 @@
 - Create a test dataset of type ```torch.utils.data.Dataset```
 - Call one of the functions from ```test.py``` including ```test_cifar10``` or ```test_cifar100``` and pass the arguments ```testdataset``` and ```filepath```. For example:
   ```
-    test_cifar10(testdataset, filepath='./trained_models/CIFAR-10/250/task1_c10_250_t60.pth')
+    test_cifar10(testdataset, filepath='./trained_models/CIFAR-10/250/task2_c10_250.pth')
   ```
 - The function will return the logits of the test dataset.
