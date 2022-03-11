@@ -30,7 +30,7 @@ def accuracy(output, target, topk=(1,)):
 def create_triplet(X, Y):
     """
     Creates triplets given an input batch
-    Returns nchors, positives and negatives, each of same size
+    Returns anchors, positives and negatives, each of same size
     """
 
     # move args to cpu for numpy

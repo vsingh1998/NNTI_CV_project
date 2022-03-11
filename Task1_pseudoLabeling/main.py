@@ -219,7 +219,7 @@ def main(args):
         scheduler.step()
 
     # save model
-    torch.save(model, args.modelpath)
+    torch.save(model.state_dict(), args.modelpath)
 
     ## Test
     model.eval()
@@ -279,8 +279,8 @@ if __name__ == "__main__":
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
     # added arguments
-    parser.add_argument('--milestones', action='append', type=int, default=[], 
-                        help="Milestones for the LR scheduler")# see if useful, else rm
+    parser.add_argument('--milestones', action='append', type=int, default=[50, 80], 
+                        help="Milestones for the LR scheduler")
     parser.add_argument("--modelpath", default="./model/task1.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.3, type=float, 

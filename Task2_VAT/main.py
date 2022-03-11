@@ -124,20 +124,12 @@ def main(args):
 
         print('Epoch: ', epoch, 'Loss: ', loss_per_epoch, 'Accuracy: ', acc_per_epoch.item())
         running_loss, running_train_acc = 0.0, 0.0
- 
-    # plot loss per epoch
-    plt.plot(loss_log)
-    plt.title('Loss per epoch')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid()
-    plt.savefig('loss.png')
 
-    torch.save(model, args.modelpath)
+    # save model
+    torch.save(model.state_dict(), args.modelpath)
 
     # Test
     running_acc = 0.0
-    acc_log = []
     
     model.eval()
     with torch.no_grad():
@@ -150,17 +142,6 @@ def main(args):
 
         test_accuracy = running_acc.item() / batch_idx
         print('Accuracy: ', test_accuracy)
-        acc_log.append(test_accuracy)
-        running_acc = 0.0
-
-    # plot accuracy curve
-    plt.plot(acc_log)
-    plt.title('Accuracy')
-    plt.xlabel('Batch')
-    plt.ylabel('Accuracy')
-    plt.grid()
-    plt.savefig('accuracy.png')
-    # """
         
             ####################################################################
 
@@ -210,16 +191,12 @@ if __name__ == "__main__":
 
     # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[], 
-                        help="Milestones for the LR scheduler")# see if useful, else rm
+                        help="Milestones for the LR scheduler")
     parser.add_argument("--modelpath", default="./model/task2.pth", 
                         type=str, help="Path to save model")
     parser.add_argument("--dropout", default=0.0, type=float, 
                         help="Dropout rate for model") 
 
-    # Add more arguments if you need them
-    # Describe them in help
-    # You can (and should) change the default values of the arguments
-    
     args = parser.parse_args()
 
     main(args)

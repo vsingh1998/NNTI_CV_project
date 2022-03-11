@@ -236,6 +236,8 @@ if __name__ == "__main__":
                         help="model depth for wide resnet") 
     parser.add_argument("--model-width", type=int, default=8,
                         help="model width for wide resnet")
+
+    # added arguments
     parser.add_argument('--milestones', action='append', type=int, default=[100, 150], 
                         help="Milestones for the LR scheduler")
     parser.add_argument("--modelpath", default="../trained_models/task1/c10/task1_c10_4k_t75/task1_c10_4k_t75.pth", 
